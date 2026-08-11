@@ -1,10 +1,9 @@
 """Streamlit UI for the parking chatbot."""
+import os
 import uuid
 
 import httpx
 import streamlit as st
-
-import os
 
 _API_BASE = os.getenv("API_BASE_URL", "http://localhost:8000")
 
