@@ -14,9 +14,9 @@
 
 **Purpose**: Docker service, config, and package skeleton — no business logic yet
 
-- [ ] T001 Add `mailhog` service (axllent/mailhog:latest, ports 1025/8025) to docker-compose.yml
-- [ ] T002 [P] Add SMTP and approval settings to `src/chatbot/config.py`: smtp_host, smtp_port, smtp_user, smtp_password, smtp_from, admin_email, approval_timeout_seconds
-- [ ] T003 [P] Create `src/chatbot/approval/` package with empty `__init__.py`
+- [X] T001 Add `mailhog` service (axllent/mailhog:latest, ports 1025/8025) to docker-compose.yml
+- [X] T002 [P] Add SMTP and approval settings to `src/chatbot/config.py`: smtp_host, smtp_port, smtp_user, smtp_password, smtp_from, admin_email, approval_timeout_seconds
+- [X] T003 [P] Create `src/chatbot/approval/` package with empty `__init__.py`
 
 ---
 
@@ -26,10 +26,10 @@
 
 **⚠️ CRITICAL**: Phases 3–5 cannot begin until this phase is complete
 
-- [ ] T004 Extend `status` field in `src/chatbot/reservation/models.py` from `Literal["draft", "submitted"]` to `Literal["draft", "submitted", "pending_approval", "approved", "rejected", "expired"]`
-- [ ] T005 [P] Add `approval_request_id: str | None = None` field to `ConversationState` in `src/chatbot/workflow/state.py`
-- [ ] T006 [P] Create `ApprovalRequest` and `ApprovalDecision` Pydantic models in `src/chatbot/approval/models.py` per data-model.md
-- [ ] T007 Implement `PendingStore` class (add, get_pending_for_session, get_by_request_id, record_decision, is_expired, clear_session) with module-level singleton in `src/chatbot/approval/store.py`
+- [X] T004 Extend `status` field in `src/chatbot/reservation/models.py` from `Literal["draft", "submitted"]` to `Literal["draft", "submitted", "pending_approval", "approved", "rejected", "expired"]`
+- [X] T005 [P] Add `approval_request_id: str | None = None` field to `ConversationState` in `src/chatbot/workflow/state.py`
+- [X] T006 [P] Create `ApprovalRequest` and `ApprovalDecision` Pydantic models in `src/chatbot/approval/models.py` per data-model.md
+- [X] T007 Implement `PendingStore` class (add, get_pending_for_session, get_by_request_id, record_decision, is_expired, clear_session) with module-level singleton in `src/chatbot/approval/store.py`
 
 **Checkpoint**: Data layer ready — all user story phases can now proceed in priority order
 
@@ -43,17 +43,17 @@
 
 ### Tests for User Story 1
 
-- [ ] T008 [P] [US1] Write ≥2 unit tests for `ApprovalRequest` model (creation, field defaults, expiry logic) in `tests/unit/test_approval_models.py`
-- [ ] T009 [P] [US1] Write ≥2 unit tests for `PendingStore` (add, get, record_decision, is_expired, clear) in `tests/unit/test_approval_store.py`
-- [ ] T010 [P] [US1] Write ≥2 unit tests for `SmtpNotifier` (mock smtplib.SMTP; verify subject, body contains request_id, first_name, approve/reject curl commands) in `tests/unit/test_approval_notifier.py`
+- [X] T008 [P] [US1] Write ≥2 unit tests for `ApprovalRequest` model (creation, field defaults, expiry logic) in `tests/unit/test_approval_models.py`
+- [X] T009 [P] [US1] Write ≥2 unit tests for `PendingStore` (add, get, record_decision, is_expired, clear) in `tests/unit/test_approval_store.py`
+- [X] T010 [P] [US1] Write ≥2 unit tests for `SmtpNotifier` (mock smtplib.SMTP; verify subject, body contains request_id, first_name, approve/reject curl commands) in `tests/unit/test_approval_notifier.py`
 
 ### Implementation for User Story 1
 
-- [ ] T011 [US1] Implement `SmtpNotifier.send_approval_request(request: ApprovalRequest)` using `smtplib` (sync) in `src/chatbot/approval/notifier.py`; email subject format: `[Parking Reservation] New request from {first_name} {surname} — {request_id}`
-- [ ] T012 [US1] Implement `ApprovalService.create_request(session_id, reservation_data) -> ApprovalRequest` (creates UUID, adds to store, sends email via notifier) in `src/chatbot/approval/service.py`
-- [ ] T013 [US1] Add `approval_request_node()` to `src/chatbot/workflow/nodes.py`: calls `ApprovalService.create_request()`, sets `state.reservation.status = "pending_approval"`, sets `state.approval_request_id`, sets `state.response_draft` to awaiting-approval message
-- [ ] T014 [US1] Update `_route_after_reservation_validator()` in `src/chatbot/workflow/graph.py` to route `status == "submitted"` → `approval_request_node` (replacing the current `guard_rails_node` route)
-- [ ] T015 [US1] Update `guard_rails_node()` PII bypass in `src/chatbot/workflow/nodes.py` to skip scan when `state.reservation.status in {"pending_approval", "approved", "rejected", "expired"}` (replaces the `"submitted"` check)
+- [X] T011 [US1] Implement `SmtpNotifier.send_approval_request(request: ApprovalRequest)` using `smtplib` (sync) in `src/chatbot/approval/notifier.py`; email subject format: `[Parking Reservation] New request from {first_name} {surname} — {request_id}`
+- [X] T012 [US1] Implement `ApprovalService.create_request(session_id, reservation_data) -> ApprovalRequest` (creates UUID, adds to store, sends email via notifier) in `src/chatbot/approval/service.py`
+- [X] T013 [US1] Add `approval_request_node()` to `src/chatbot/workflow/nodes.py`: calls `ApprovalService.create_request()`, sets `state.reservation.status = "pending_approval"`, sets `state.approval_request_id`, sets `state.response_draft` to awaiting-approval message
+- [X] T014 [US1] Update `_route_after_reservation_validator()` in `src/chatbot/workflow/graph.py` to route `status == "submitted"` → `approval_request_node` (replacing the current `guard_rails_node` route)
+- [X] T015 [US1] Update `guard_rails_node()` PII bypass in `src/chatbot/workflow/nodes.py` to skip scan when `state.reservation.status in {"pending_approval", "approved", "rejected", "expired"}` (replaces the `"submitted"` check)
 
 **Checkpoint**: US1 fully functional — MailHog receives email, chatbot returns "pending" message
 
@@ -67,13 +67,13 @@
 
 ### Tests for User Story 2
 
-- [ ] T016 [P] [US2] Write ≥2 unit tests for `ApprovalService.record_decision()` (approve, reject with reason, duplicate call raises error) in `tests/unit/test_approval_service.py`
-- [ ] T017 [P] [US2] Write ≥2 unit tests for admin endpoints (valid token approve → 204; invalid token → 401; unknown request_id → 404; duplicate decision → 409) using FastAPI `TestClient` in `tests/unit/test_approval_api.py`
+- [X] T016 [P] [US2] Write ≥2 unit tests for `ApprovalService.record_decision()` (approve, reject with reason, duplicate call raises error) in `tests/unit/test_approval_service.py`
+- [X] T017 [P] [US2] Write ≥2 unit tests for admin endpoints (valid token approve → 204; invalid token → 401; unknown request_id → 404; duplicate decision → 409) using FastAPI `TestClient` in `tests/unit/test_approval_api.py`
 
 ### Implementation for User Story 2
 
-- [ ] T018 [US2] Add `ApprovalService.record_decision(request_id, decision, reason) -> ApprovalRequest` in `src/chatbot/approval/service.py`; raises `ValueError` if already decided or expired
-- [ ] T019 [US2] Add `POST /admin/reservation/{request_id}/approve` and `POST /admin/reservation/{request_id}/reject` endpoints to `src/chatbot/api/main.py`; both require bearer token via `_require_admin`; return 204 on success, 404 if not found, 409 if already decided
+- [X] T018 [US2] Add `ApprovalService.record_decision(request_id, decision, reason) -> ApprovalRequest` in `src/chatbot/approval/service.py`; raises `ValueError` if already decided or expired
+- [X] T019 [US2] Add `POST /admin/reservation/{request_id}/approve` and `POST /admin/reservation/{request_id}/reject` endpoints to `src/chatbot/api/main.py`; both require bearer token via `_require_admin`; return 204 on success, 404 if not found, 409 if already decided
 
 **Checkpoint**: US2 fully functional — approve/reject endpoints work independently of chatbot
 
@@ -87,12 +87,12 @@
 
 ### Tests for User Story 3
 
-- [ ] T020 [P] [US3] Write ≥4 unit tests for `pending_check_node()` covering: approved decision delivered, rejected decision with reason, timeout expired, no pending request (normal flow) — in `tests/unit/test_approval_nodes.py`
+- [X] T020 [P] [US3] Write ≥4 unit tests for `pending_check_node()` covering: approved decision delivered, rejected decision with reason, timeout expired, no pending request (normal flow) — in `tests/unit/test_approval_nodes.py`
 
 ### Implementation for User Story 3
 
-- [ ] T021 [US3] Implement `pending_check_node()` in `src/chatbot/workflow/nodes.py`: checks store by session_id → if decision arrived sets response_draft and clears store → if expired sets `status = "expired"` and clears store → if still pending returns state unchanged (routes to route_intent)
-- [ ] T022 [US3] Add `pending_check_node` as first node after `START` in `src/chatbot/workflow/graph.py` with conditional routing: decision/expired → `guard_rails_node`; no pending → `route_intent`
+- [X] T021 [US3] Implement `pending_check_node()` in `src/chatbot/workflow/nodes.py`: checks store by session_id → if decision arrived sets response_draft and clears store → if expired sets `status = "expired"` and clears store → if still pending returns state unchanged (routes to route_intent)
+- [X] T022 [US3] Add `pending_check_node` as first node after `START` in `src/chatbot/workflow/graph.py` with conditional routing: decision/expired → `guard_rails_node`; no pending → `route_intent`
 
 **Checkpoint**: Full end-to-end flow working — submit reservation → admin approves → user notified on next message
 
@@ -100,10 +100,10 @@
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T023 [P] Update `.env.example` with SMTP variables (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FROM, ADMIN_EMAIL, APPROVAL_TIMEOUT_SECONDS) with safe placeholder values
-- [ ] T024 Update `README.md` with Stage 3 section: architecture of admin approval flow, new env vars, MailHog setup, quickstart demo steps, link to quickstart.md
-- [ ] T025 [P] Update `docs/presentation/parking_chatbot.pptx` via `scripts/build_presentation.py`: add Stage 3 slides covering HITL architecture, email notification flow, and approve/reject demo
-- [ ] T026 Run full end-to-end validation per `specs/002-admin-approval/quickstart.md`: submit reservation, check MailHog, approve via curl, verify user notification, test rejection and timeout paths
+- [X] T023 [P] Update `.env.example` with SMTP variables (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FROM, ADMIN_EMAIL, APPROVAL_TIMEOUT_SECONDS) with safe placeholder values
+- [X] T024 Update `README.md` with Stage 3 section: architecture of admin approval flow, new env vars, MailHog setup, quickstart demo steps, link to quickstart.md
+- [X] T025 [P] Update `docs/presentation/parking_chatbot.pptx` via `scripts/build_presentation.py`: add Stage 3 slides covering HITL architecture, email notification flow, and approve/reject demo
+- [X] T026 Run full end-to-end validation per `specs/002-admin-approval/quickstart.md`: submit reservation, check MailHog, approve via curl, verify user notification, test rejection and timeout paths
 
 ---
 

@@ -24,3 +24,4 @@ class ConversationState(BaseModel):
     response_draft: str | None = None
     response_final: str | None = None
     error: str | None = None
+    approval_request_id: str | None = None
