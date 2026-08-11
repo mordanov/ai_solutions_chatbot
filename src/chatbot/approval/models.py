@@ -1,5 +1,5 @@
 """Pydantic models for the admin reservation approval workflow."""
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Literal
 from uuid import uuid4
 
@@ -14,7 +14,7 @@ class ApprovalRequest(BaseModel):
     license_plate: str
     start_datetime: str
     end_datetime: str
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     decision: Literal["approved", "rejected"] | None = None
     reason: str | None = None
     decided_at: datetime | None = None

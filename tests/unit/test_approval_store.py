@@ -1,5 +1,5 @@
 """Unit tests for PendingStore."""
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
 import pytest
@@ -88,7 +88,7 @@ def test_is_expired_false_for_fresh():
 def test_is_expired_true_after_timeout():
     store = _fresh_store()
     req = _make_request("s7")
-    old_time = datetime.now(timezone.utc) - timedelta(seconds=400)
+    old_time = datetime.now(UTC) - timedelta(seconds=400)
     req.created_at = old_time
     store.add(req)
     with patch("chatbot.approval.store.settings") as mock_settings:

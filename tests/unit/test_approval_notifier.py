@@ -1,8 +1,6 @@
 """Unit tests for SmtpNotifier — mocks smtplib.SMTP."""
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from chatbot.approval.models import ApprovalRequest
 from chatbot.approval.notifier import SmtpNotifier
 

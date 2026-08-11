@@ -1,5 +1,5 @@
 """Unit tests for pending_check_node."""
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -49,7 +49,7 @@ def _seed(session_id: str = "sess-node", decision=None, reason=None) -> Approval
     if decision:
         req.decision = decision  # type: ignore[assignment]
         req.reason = reason
-        req.decided_at = datetime.now(timezone.utc)
+        req.decided_at = datetime.now(UTC)
     pending_store.add(req)
     return req
 
@@ -95,7 +95,7 @@ def test_expired_request_sets_expired_status_and_clears_store():
 
     req = _seed("sess-expired")
     # Back-date created_at beyond timeout
-    req.created_at = datetime.now(timezone.utc) - timedelta(seconds=10_000)
+    req.created_at = datetime.now(UTC) - timedelta(seconds=10_000)
     store_mod._by_request[req.request_id] = req
 
     state = _make_state("sess-expired")

@@ -1,7 +1,5 @@
 """Unit tests for ApprovalRequest and ApprovalDecision models."""
-from datetime import datetime, timedelta, timezone
-
-import pytest
+from datetime import UTC, datetime
 
 from chatbot.approval.models import ApprovalDecision, ApprovalRequest
 
@@ -22,8 +20,8 @@ def test_approval_request_defaults():
     assert req.created_at.tzinfo is not None
 
 
-def test_approval_request_unique_ids():
-    make = lambda: ApprovalRequest(
+def make() -> ApprovalRequest:
+    return ApprovalRequest(
         session_id="s1",
         first_name="A",
         surname="B",
@@ -31,6 +29,9 @@ def test_approval_request_unique_ids():
         start_datetime="2026-08-15 10:00",
         end_datetime="2026-08-16 10:00",
     )
+
+
+def test_approval_request_unique_ids():
     assert make().request_id != make().request_id
 
 
@@ -42,7 +43,7 @@ def test_approval_decision_reason_optional():
 
 
 def test_approval_request_created_at_is_recent():
-    before = datetime.now(timezone.utc)
+    before = datetime.now(UTC)
     req = ApprovalRequest(
         session_id="s1",
         first_name="A",
@@ -51,5 +52,5 @@ def test_approval_request_created_at_is_recent():
         start_datetime="2026-08-15 10:00",
         end_datetime="2026-08-16 10:00",
     )
-    after = datetime.now(timezone.utc)
+    after = datetime.now(UTC)
     assert before <= req.created_at <= after

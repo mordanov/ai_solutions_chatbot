@@ -1,5 +1,5 @@
 """In-process pending approval store keyed by session_id."""
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from chatbot.approval.models import ApprovalRequest
 from chatbot.config import settings
@@ -35,14 +35,14 @@ class PendingStore:
             raise ValueError(f"Request {request_id} has expired")
         req.decision = decision  # type: ignore[assignment]
         req.reason = reason
-        req.decided_at = datetime.now(timezone.utc)
+        req.decided_at = datetime.now(UTC)
         return req
 
     def is_expired(self, request_id: str) -> bool:
         req = _by_request.get(request_id)
         if req is None:
             return False
-        age = (datetime.now(timezone.utc) - req.created_at).total_seconds()
+        age = (datetime.now(UTC) - req.created_at).total_seconds()
         return age > settings.approval_timeout_seconds
 
     def clear_session(self, session_id: str) -> None:
