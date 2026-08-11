@@ -52,7 +52,7 @@
 
 ## Decision 6 — MailHog for Demo
 
-**Decision**: Add `mailhog` (axllent/mailhog:latest) to docker-compose as a new service on ports 1025 (SMTP) and 8025 (web UI). API service connects via `SMTP_HOST=mailhog`, `SMTP_PORT=1025`.
+**Decision**: Add `mailhog` (mailhog/mailhog:v1.0.1) to docker-compose as a new service on ports 1025 (SMTP) and 8025 (web UI). API service connects via `SMTP_HOST=mailhog`, `SMTP_PORT=1025`.
 
 **Rationale**: MailHog is a well-known zero-configuration SMTP mock for dev/demo. It captures all outgoing emails and exposes them in a web UI at `http://localhost:8025`, making the email visible during the presentation without a real mail server. No authentication required.
 

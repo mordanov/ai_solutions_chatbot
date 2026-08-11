@@ -14,7 +14,7 @@
 
 **Purpose**: Docker service, config, and package skeleton — no business logic yet
 
-- [X] T001 Add `mailhog` service (axllent/mailhog:latest, ports 1025/8025) to docker-compose.yml
+- [X] T001 Add `mailhog` service (mailhog/mailhog:v1.0.1, ports 1025/8025) to docker-compose.yml
 - [X] T002 [P] Add SMTP and approval settings to `src/chatbot/config.py`: smtp_host, smtp_port, smtp_user, smtp_password, smtp_from, admin_email, approval_timeout_seconds
 - [X] T003 [P] Create `src/chatbot/approval/` package with empty `__init__.py`
 
