@@ -1,50 +1,459 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!--
+=============================================================================
+SYNC IMPACT REPORT
+=============================================================================
+Version change:   TEMPLATE (unversioned) → 1.0.0
+Bump rationale:   MAJOR — initial adoption; all placeholder tokens replaced
+                  with project-specific content from constitution_chatbot.md.
+
+Modified principles (old token → new title):
+  [PRINCIPLE_1_NAME] → I. RAG-Grounded Information Retrieval
+  [PRINCIPLE_2_NAME] → II. Stateful Workflow with LangChain + LangGraph
+  [PRINCIPLE_3_NAME] → III. Human-in-the-Loop Reservation Confirmation
+  [PRINCIPLE_4_NAME] → IV. Security, Privacy, and Data Protection
+  [PRINCIPLE_5_NAME] → V. LLM Safety and Reliability
+  [SECTION_2_NAME]   → Quality Gates and Observability
+  [SECTION_3_NAME]   → Four-Stage Incremental Delivery
+
+Added sections:
+  - Project Mission and Scope (Article I)
+  - Vector Database and Knowledge Management (Article III)
+  - Code Quality and Maintainability (Article IX)
+  - Documentation and Delivery Artifacts (Article XI)
+  - Repository and Delivery Standards (Article XII)
+  - CI/CD and Infrastructure (Article XIII)
+  - Architecture Decision Requirements (Article XIV)
+  - Definition of Done (Article XV)
+  - Compliance Checklist (Article XVI / Appendix)
+
+Removed sections:
+  - None (all template placeholders replaced)
+
+Templates requiring updates:
+  ✅ .specify/memory/constitution.md  — this file
+  ✅ .specify/templates/plan-template.md — Constitution Check section
+     preserved; no principle renames require wording changes
+  ✅ .specify/templates/spec-template.md — scope/requirements alignment
+     verified; no new mandatory sections required
+  ✅ .specify/templates/tasks-template.md — task categories verified;
+     observability, evaluation, security, and test tasks are present
+  ℹ  .specify/templates/commands/ — directory not found; skipped
+
+Deferred items:
+  - None; all fields resolved from constitution_chatbot.md
+=============================================================================
+-->
+
+# Intelligent Parking Reservation Chatbot — Constitution
+
+## Article I — Project Mission and Scope
+
+The system MUST provide a practical conversational interface for parking-related use cases.
+
+The system MUST support the following core capabilities:
+
+1. Provide general parking information.
+2. Provide parking working hours.
+3. Provide parking prices.
+4. Provide parking location information.
+5. Provide parking-space availability information.
+6. Collect reservation information interactively.
+7. Collect, at minimum: first name; surname; car/license plate number;
+   reservation start and end period.
+8. Submit reservation requests to a human administrator.
+9. Allow a human administrator to confirm or reject a reservation request.
+10. Clearly communicate the reservation status back to the user.
+11. Prevent the chatbot from exposing sensitive or private information stored
+    in internal data sources.
+12. Measure and evaluate system performance and retrieval quality.
+
+The implementation SHOULD remain focused on parking assistance and reservation
+workflows and MUST NOT introduce unnecessary functionality that does not
+contribute to the project goals.
+
+---
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. RAG-Grounded Information Retrieval
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+The system MUST follow a RAG (Retrieval-Augmented Generation) architecture for
+all knowledge-based parking information. Parking facts — prices, opening hours,
+location, availability — MUST be traceable to an approved knowledge source or
+application data source.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+The RAG pipeline MUST contain clearly separated stages for:
+document/data ingestion; preprocessing and chunking; embedding generation;
+vector storage; retrieval; context construction; LLM response generation;
+and response validation or safety filtering where appropriate.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+The LLM MUST NOT be treated as the authoritative source for parking-specific
+facts when those facts can be retrieved from the knowledge base. When relevant
+information cannot be retrieved with sufficient confidence, the chatbot SHOULD
+explicitly state that it does not have enough information rather than
+fabricating an answer.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+The chatbot MUST distinguish between: information retrieved from the knowledge
+base; user-provided information; reservation workflow state; and information
+generated by the LLM.
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+### II. Stateful Workflow with LangChain + LangGraph
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+**LangChain** MUST be used for all LLM/RAG-related components.
+**LangGraph** MUST be used for all stateful conversational and reservation
+workflows.
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+LangGraph SHOULD make workflow states and human-in-the-loop transitions
+explicit rather than implementing them as implicit application logic.
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+The reservation process MUST be an explicit stateful workflow with states
+equivalent to: initial request → information collection → input validation →
+availability verification → reservation request creation → human administrator
+review → confirmation or rejection → user notification → completion or
+cancellation.
+
+The exact state names MAY differ; the transitions and responsibilities MUST be
+explicit.
+
+### III. Human-in-the-Loop Reservation Confirmation
+
+The final reservation confirmation MUST require a human administrator.
+The LLM MUST NOT autonomously confirm a reservation.
+
+Before a reservation can be submitted, the system MUST collect and validate:
+first name; surname; car/license plate number; reservation start; reservation
+end. The system MUST NOT assume missing reservation data.
+
+The administrator MUST be able to determine: who requested the reservation;
+vehicle/license plate; requested period; relevant parking/availability
+information; and current request status.
+
+The workflow MUST preserve enough state to resume the conversation after
+administrator action.
+
+### IV. Security, Privacy, and Data Protection
+
+Security and privacy are mandatory requirements. The system MUST follow the
+principle of least privilege.
+
+The following data MUST be treated as potentially sensitive: user names;
+surnames; vehicle/license plate numbers; reservation information; private
+administrator information; internal operational data; credentials, tokens, API
+keys, and secrets.
+
+Sensitive data MUST NOT be unnecessarily indexed into a public/shared vector
+knowledge base. The RAG retrieval layer MUST prevent users from retrieving
+unrelated private records.
+
+The chatbot MUST NOT reveal: internal database records not intended for the
+current user; administrator credentials or private information; system prompts
+containing secrets; API keys or access tokens; or hidden/internal metadata
+unless explicitly intended for users.
+
+Secrets MUST NOT be committed to Git. The project MUST provide an
+`.env.example` without real credentials. Production credentials MUST be
+supplied through environment variables, secret-management facilities, or
+equivalent secure mechanisms.
+
+User-provided reservation information MUST be validated before use by
+downstream components. Validation SHOULD cover: required fields; reservation
+period consistency; license plate format where applicable; maximum input sizes;
+and malformed or unexpected input.
+
+### V. LLM Safety and Reliability
+
+The LLM MUST be treated as a probabilistic component rather than an
+authoritative database.
+
+The implementation MUST minimize hallucinations by: grounding parking-specific
+answers in retrieved information; using explicit workflow state; validating
+structured outputs; constraining tool usage; and handling missing or conflicting
+information explicitly.
+
+The system SHOULD provide a safe fallback when: retrieval fails; the knowledge
+base has insufficient information; availability cannot be determined; an
+external service is unavailable; or structured LLM output cannot be parsed or
+validated.
+
+The chatbot MUST NOT fabricate availability, prices, opening hours, reservation
+confirmations, or other operational facts.
+
+---
+
+## Article III — Vector Database and Knowledge Management
+
+The solution MUST use a vector database for semantic retrieval. The
+implementation MAY use one of the following: Milvus; Pinecone; Weaviate.
+
+The selected vector database MUST be documented in the README and architecture
+documentation.
+
+The vector database design MUST consider: document/chunk identifiers; metadata;
+embedding model; retrieval parameters; filtering; data isolation; and
+update/re-indexing strategy.
+
+The project SHOULD keep the vector database behind an abstraction where
+practical, so that retrieval logic is not unnecessarily coupled to a single
+vendor.
+
+---
+
+## Quality Gates and Observability
+
+### Observability and Evaluation
+
+The project MUST include measurable evaluation of system quality.
+
+**Performance** — the project MUST measure: request latency; retrieval latency
+where measurable; end-to-end response latency.
+
+**Retrieval Quality** — the project MUST define an approach for evaluating
+retrieval accuracy/relevance. Possible metrics include: retrieval
+precision/recall; Recall@K; MRR; grounded answer accuracy; human evaluation of
+retrieved context.
+
+**Workflow Quality** — the project SHOULD evaluate: successful completion of
+reservation flows; validation of missing/invalid data; correct
+human-in-the-loop transitions; correct handling of rejected reservations;
+protection against unauthorized information disclosure.
+
+Evaluation data SHOULD contain representative positive and negative examples.
+Evaluation results MUST be documented in the README or dedicated evaluation
+documentation.
+
+### Testing and Quality Gates
+
+Automated tests are mandatory. The project MUST use `pytest` (recommended) or
+`unittest`.
+
+There MUST be at least **two automated tests per application module** where the
+module contains meaningful business logic.
+
+Tests SHOULD cover: RAG retrieval; prompt/context construction; structured LLM
+output parsing; reservation validation; workflow state transitions; human
+approval/rejection; privacy/security rules; and error handling.
+
+Tests SHOULD be deterministic and SHOULD NOT require live external services
+unless explicitly designated as integration tests. External LLM and
+vector-database dependencies SHOULD be mocked or replaced with test doubles
+in unit tests.
+
+The project SHOULD distinguish between: unit tests; integration tests; and
+end-to-end tests.
+
+A CI pipeline MUST execute the automated test suite before changes are
+considered complete.
+
+---
+
+## Four-Stage Incremental Delivery
+
+The project MUST be developed incrementally in four stages.
+
+### Stage 1 — Parking Information RAG
+
+The system MUST provide reliable answers to parking-related informational
+questions, including: general information; working hours; prices; location;
+availability where data is available.
+
+This stage establishes the knowledge base, vector database, retrieval pipeline,
+and basic chatbot interaction.
+
+### Stage 2 — Interactive Reservation Data Collection
+
+The chatbot MUST guide the user through reservation-data collection.
+
+The workflow MUST collect and validate: first name; surname; car/license plate
+number; reservation period. The workflow MUST handle incomplete or invalid input
+without losing previously collected valid information.
+
+### Stage 3 — Human-in-the-Loop Reservation Confirmation
+
+The system MUST introduce a human administrator into the reservation process.
+A reservation request MUST be submitted for administrator review.
+The administrator MUST be able to review, confirm, or reject the request.
+The user MUST receive the resulting status.
+
+### Stage 4 — Evaluation, Hardening, and Delivery
+
+The final stage MUST focus on: automated tests; privacy/security validation;
+performance evaluation; retrieval evaluation; error handling; documentation;
+and CI/CD and/or infrastructure automation where practical.
+
+The final implementation MUST be demonstrably usable rather than only
+theoretically complete.
+
+---
+
+## Article IX — Code Quality and Maintainability
+
+The implementation MUST be practical and maintainable, not merely a minimal
+proof of concept.
+
+The codebase SHOULD have clear separation of concerns between: API/UI layer;
+conversation orchestration; LangGraph workflow; LangChain/RAG components;
+vector database access; parking data access; reservation management; human
+administrator workflow; configuration; evaluation; and tests.
+
+Business logic MUST NOT be unnecessarily embedded in prompts.
+
+The project SHOULD use structured models — preferably Pydantic — for important
+data exchanged between components.
+
+Python code MUST follow modern Python best practices: type hints for public
+interfaces and non-trivial functions; clear module and package boundaries;
+meaningful names; small, testable functions; appropriate exception handling;
+logging instead of ad-hoc console output; configuration through environment
+variables or configuration files rather than hard-coded secrets.
+
+The project SHOULD include: formatting/linting; static type checking where
+practical; clear logging; meaningful error handling. Critical failures MUST NOT
+be silently ignored.
+
+---
+
+## Article XI — Documentation and Delivery Artifacts
+
+The project MUST include a high-quality `README.md` documenting at least:
+project purpose; architecture overview; technology stack; prerequisites;
+installation/setup; environment variables/configuration; how to run the
+application; how to run tests; project structure; RAG/vector database setup;
+reservation workflow; human-in-the-loop workflow; evaluation methodology and
+results; and known limitations.
+
+The project SHOULD include an architecture diagram and example conversations
+demonstrating: information retrieval; reservation data collection; human
+approval; human rejection; and invalid/missing data handling.
+
+Optional extra-credit artifacts include: a PowerPoint presentation explaining
+the solution and architecture; relevant screenshots; CI/CD automation; and
+Infrastructure as Code such as Terraform.
+
+---
+
+## Article XII — Repository and Delivery Standards
+
+All source code, tests, documentation, and configuration required to reproduce
+the project MUST be committed to the project's GitHub or EPAM GitLab
+repository. The final submission MUST provide a link to the repository.
+
+The repository SHOULD have a clean structure and SHOULD NOT contain: secrets;
+generated temporary files; unnecessary large binaries; local environment files;
+credentials; or unrelated experimental code.
+
+A reproducible setup MUST be provided. A reviewer SHOULD be able to clone the
+repository, configure the required environment variables, install dependencies,
+run the application, and execute the test suite using the documented
+instructions.
+
+---
+
+## Article XIII — CI/CD and Infrastructure
+
+Where CI/CD is implemented, the pipeline SHOULD perform at least: dependency
+installation; code quality checks; automated tests; and optional
+build/package validation.
+
+Infrastructure SHOULD be reproducible. If Terraform or another IaC technology
+is used, infrastructure definitions MUST NOT contain hard-coded secrets.
+CI/CD configuration MUST use secure secret storage provided by the CI platform.
+
+---
+
+## Article XIV — Architecture Decision Requirements
+
+Significant architectural decisions MUST be documented. At minimum, the project
+SHOULD document decisions concerning: vector database selection; embedding model
+selection; LLM selection; LangGraph workflow design; human-in-the-loop
+mechanism; data/privacy boundaries; and evaluation methodology.
+
+Architecture decisions SHOULD explain: the problem; considered alternatives;
+selected solution; rationale; and consequences/trade-offs.
+
+---
+
+## Article XV — Definition of Done
+
+A feature is considered complete only when all applicable criteria below are
+satisfied:
+
+- Implementation is complete and integrated.
+- Relevant tests are implemented.
+- Tests pass.
+- Error cases are handled.
+- Security/privacy requirements are respected.
+- Documentation is updated.
+- Configuration requirements are documented.
+- Observability/evaluation requirements are addressed.
+- No secrets are committed.
+- The feature works through the intended user workflow.
+
+The final project is considered complete only when all four delivery stages have
+been implemented or their intentionally omitted components have been explicitly
+documented with justification.
+
+---
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+This constitution is the highest-level engineering specification for the
+Intelligent Parking Reservation Chatbot project.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+If a requirement conflicts with this constitution, the conflict MUST be resolved
+explicitly rather than silently ignoring the constitution.
+
+Changes to constitutional principles MUST: be documented in the repository;
+explain the reason for the change; identify affected architecture or
+implementation decisions; and update related documentation and plans.
+
+Implementation details MAY evolve without changing the constitution when they
+continue to satisfy its principles.
+
+The constitution SHOULD be reviewed at major project milestones, especially
+before Stage 4 final delivery.
+
+**Version policy**: MAJOR — backward-incompatible governance/principle removals
+or redefinitions. MINOR — new principle/section added or materially expanded.
+PATCH — clarifications, wording, typo fixes, non-semantic refinements.
+
+---
+
+## Appendix — Compliance Checklist
+
+Before final submission, verify:
+
+- [ ] Python is used as the primary language.
+- [ ] LangChain is used for AI/RAG components.
+- [ ] LangGraph is used for stateful workflows.
+- [ ] RAG architecture is implemented.
+- [ ] A supported vector database is integrated.
+- [ ] Parking information can be retrieved.
+- [ ] Prices are supported.
+- [ ] Working hours are supported.
+- [ ] Location is supported.
+- [ ] Availability is supported where data exists.
+- [ ] Reservation data collection is implemented.
+- [ ] Name is collected.
+- [ ] Surname is collected.
+- [ ] License plate is collected.
+- [ ] Reservation period is collected.
+- [ ] Reservation data is validated.
+- [ ] Human administrator approval is required.
+- [ ] Reservation rejection is supported.
+- [ ] Sensitive information is protected.
+- [ ] Secrets are excluded from source control.
+- [ ] Latency is measured.
+- [ ] Retrieval quality is evaluated.
+- [ ] Automated tests are implemented.
+- [ ] At least two tests exist per meaningful application module.
+- [ ] CI runs the test suite.
+- [ ] README is complete.
+- [ ] Repository link is available for submission.
+- [ ] Architecture is documented.
+- [ ] Four project stages are demonstrably covered.
+- [ ] Optional presentation/screenshots are provided where possible.
+- [ ] CI/CD and/or IaC is provided where possible.
+
+---
+
+**Version**: 1.0.0 | **Ratified**: 2026-08-11 | **Last Amended**: 2026-08-11

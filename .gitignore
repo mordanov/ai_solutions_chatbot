@@ -1,0 +1,84 @@
+# ── Secrets & credentials ──────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# ── Python ─────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+wheels/
+sdist/
+.eggs/
+MANIFEST
+
+# ── Virtual environments ────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+.env.bak
+
+# ── Testing & coverage ──────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.tox/
+.nox/
+
+# ── Type checking & linting ─────────────────────────────────────────────────
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.ruff_cache/
+.pytype/
+
+# ── Vector database local data ───────────────────────────────────────────────
+# Milvus standalone / embedded
+volumes/
+milvus_data/
+etcd_data/
+minio_data/
+*.db
+*.sqlite
+*.sqlite3
+
+# ── LangChain / LangSmith ────────────────────────────────────────────────────
+langchain_cache/
+.langchain/
+
+# ── Jupyter ──────────────────────────────────────────────────────────────────
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# ── Logs & runtime artifacts ─────────────────────────────────────────────────
+*.log
+logs/
+*.pid
+
+# ── IDE — JetBrains ──────────────────────────────────────────────────────────
+.idea/
+
+# ── IDE — VS Code ────────────────────────────────────────────────────────────
+.vscode/
+
+# ── macOS ────────────────────────────────────────────────────────────────────
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# ── Temporary / generated output ─────────────────────────────────────────────
+tmp/
+temp/
+graphify-out/
+*.tmp
