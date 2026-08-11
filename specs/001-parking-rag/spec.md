@@ -157,6 +157,12 @@ or internal metadata in all cases.
 - **FR-010**: The system MUST evaluate retrieval quality using at minimum Recall@K
   and Precision metrics on a representative set of parking questions.
 - **FR-011**: Evaluation results MUST be produced as a documented report.
+- **FR-012**: A CI/CD pipeline SHOULD automatically run the automated test suite on
+  every commit to the main branch (extra-credit deliverable; does not block Stage 1
+  completion if not implemented).
+- **FR-013**: A PowerPoint presentation SHOULD be produced explaining the solution
+  architecture and demonstrating key workflows with screenshots (extra-credit
+  deliverable; does not block Stage 1 completion if not produced).
 
 ### Key Entities
 
@@ -184,11 +190,23 @@ or internal metadata in all cases.
 - **SC-004**: The chatbot successfully guides a user through the complete reservation
   data-collection dialogue (all five fields) with no data loss on the first attempt
   when all inputs are valid.
-- **SC-005**: Guard rails block 100% of a defined set of boundary-probing prompts
-  designed to extract private records or credentials, with a false-positive rate
-  below 5% on legitimate parking queries.
+- **SC-005**: Guard rails block 100% of a defined evaluation set of at least 10
+  boundary-probing prompts covering four categories — PII extraction, credential
+  extraction, cross-user data access, and prompt injection — with a false-positive
+  rate below 5% on legitimate parking queries.
 - **SC-006**: An evaluation report is produced documenting latency measurements and
   retrieval quality metrics.
+
+---
+
+## Clarifications
+
+### Session 2026-08-11
+
+- Q: Should CI/CD pipeline be a required or optional deliverable? → A: SHOULD (optional/extra-credit) — added as FR-012.
+- Q: Should Terraform IaC be in scope? → A: No — Docker Compose is the only required infrastructure artifact; Terraform is out of scope.
+- Q: How should SC-005's "defined set" of guard-rail probes be specified? → A: Minimum 10 probes across 4 categories: PII extraction, credential extraction, cross-user data access, prompt injection — updated SC-005.
+- Q: Should a PowerPoint presentation be a formal deliverable? → A: SHOULD (extra-credit) — added as FR-013.
 
 ---
 
@@ -210,3 +228,6 @@ or internal metadata in all cases.
   user; the exact detection model or rule set will be selected during planning.
 - The system is a single-tenant deployment for one parking facility; multi-tenant
   isolation is out of scope.
+- Infrastructure-as-Code is limited to Docker Compose; Terraform is out of scope.
+- CI/CD is an extra-credit deliverable (SHOULD, not MUST); Stage 1 completion does
+  not depend on it.
