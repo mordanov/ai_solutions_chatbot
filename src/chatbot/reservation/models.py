@@ -4,7 +4,7 @@ from typing import Literal
 from pydantic import BaseModel
 
 
-class ReservationField(str, Enum):
+class ReservationField(Enum):
     first_name = "first_name"
     surname = "surname"
     license_plate = "license_plate"

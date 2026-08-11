@@ -1,11 +1,10 @@
 """Unit tests for ParkingRepository using an in-memory SQLite database."""
-from datetime import datetime
 
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from chatbot.data.models import Base, ParkingAvailability, ParkingRate
+from chatbot.data.models import Base
 from chatbot.data.repository import ParkingRepository
 from chatbot.data.seed import seed
 

@@ -1,7 +1,6 @@
 """Unit tests for workflow nodes (LLM and external services mocked)."""
 from unittest.mock import MagicMock, patch
 
-import pytest
 from langchain_core.messages import HumanMessage
 
 from chatbot.workflow.state import ConversationState, ReservationData

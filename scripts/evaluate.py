@@ -27,7 +27,7 @@ def main() -> None:
     print("Running evaluation …")
     report = run_evaluation(dataset, retriever, chain)
 
-    print(f"\n=== Evaluation Report ===")
+    print("\n=== Evaluation Report ===")
     print(f"Questions evaluated : {len(report.results)}")
     print(f"Avg Recall@5        : {report.avg_recall:.3f}")
     print(f"Avg Precision@5     : {report.avg_precision:.3f}")

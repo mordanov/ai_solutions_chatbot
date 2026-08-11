@@ -28,7 +28,7 @@ jobs:
           python-version: "3.13"
           cache: pip
       - name: Install dependencies
-        run: pip install -r requirements-dev.txt
+        run: pip install -r requirements-dev.txt -e .
       - name: Run unit tests
         env:
           OPENAI_API_KEY: "sk-test-placeholder"

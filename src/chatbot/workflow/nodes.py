@@ -200,7 +200,6 @@ def out_of_scope_node(state: ConversationState) -> ConversationState:
 def reservation_collector_node(state: ConversationState) -> ConversationState:
     """Extract reservation fields from the latest user message."""
     try:
-        from chatbot.reservation.models import ReservationData
         from chatbot.workflow.state import ReservationData as StateReservation
 
         last_human = next(

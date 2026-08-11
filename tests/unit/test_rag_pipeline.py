@@ -43,7 +43,7 @@ def test_rag_pipeline_returns_fallback_when_no_chunks():
         mock_llm = MagicMock()
         mock_llm_cls.return_value = mock_llm
 
-        from chatbot.rag.pipeline import build_rag_chain, FALLBACK_MESSAGE
+        from chatbot.rag.pipeline import FALLBACK_MESSAGE, build_rag_chain
 
         chain = build_rag_chain(mock_llm)
         result = chain({"question": "Random question", "context": []})

@@ -5,7 +5,6 @@ from sqlalchemy.orm import Session
 
 from chatbot.data.models import ParkingAvailability, ParkingHours, ParkingRate
 
-
 RATES = [
     ParkingRate(
         rate_type="hourly",

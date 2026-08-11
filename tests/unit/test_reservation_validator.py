@@ -1,5 +1,4 @@
 """Unit tests for reservation field validation."""
-import pytest
 
 from chatbot.reservation.models import ReservationDraft
 from chatbot.reservation.validator import validate_reservation
