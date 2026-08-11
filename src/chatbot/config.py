@@ -28,5 +28,14 @@ class Settings(BaseSettings):
     # Logging
     log_level: str = "INFO"
 
+    # SMTP / Admin notifications
+    smtp_host: str = "localhost"
+    smtp_port: int = 1025
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = "chatbot@parking.local"
+    admin_email: str = "admin@parking.local"
+    approval_timeout_seconds: int = 300
+
 
 settings = Settings()

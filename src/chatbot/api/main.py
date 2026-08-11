@@ -8,6 +8,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from langchain_core.messages import HumanMessage
 from pydantic import BaseModel
 
+from chatbot.approval.models import ApprovalDecision
 from chatbot.config import settings
 from chatbot.workflow.graph import compiled_graph
 from chatbot.workflow.state import ConversationState
@@ -78,6 +79,50 @@ async def chat(req: ChatRequest) -> ChatResponse:
         intent=intent,
         latency_ms=latency_ms,
     )
+
+
+@app.get("/admin/reservations/pending")
+async def list_pending_reservations(_: None = Depends(_require_admin)) -> list[dict]:
+    """Return all pending (undecided, non-expired) approval requests."""
+    from chatbot.approval.store import pending_store
+
+    return [req.model_dump(mode="json") for req in pending_store.get_all_pending()]
+
+
+@app.post("/admin/reservation/{request_id}/approve", status_code=204)
+async def approve_reservation(
+    request_id: str,
+    _: None = Depends(_require_admin),
+) -> None:
+    """Record an admin approval decision for a pending reservation."""
+    from chatbot.approval.service import ApprovalService
+    from chatbot.approval.store import pending_store
+
+    if pending_store.get_by_request_id(request_id) is None:
+        raise HTTPException(status_code=404, detail="Reservation request not found")
+    try:
+        ApprovalService().record_decision(request_id, "approved")
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail="Reservation request is no longer actionable") from exc
+
+
+@app.post("/admin/reservation/{request_id}/reject", status_code=204)
+async def reject_reservation(
+    request_id: str,
+    body: ApprovalDecision | None = None,
+    _: None = Depends(_require_admin),
+) -> None:
+    """Record an admin rejection decision for a pending reservation."""
+    from chatbot.approval.service import ApprovalService
+    from chatbot.approval.store import pending_store
+
+    if pending_store.get_by_request_id(request_id) is None:
+        raise HTTPException(status_code=404, detail="Reservation request not found")
+    reason = body.reason if body else None
+    try:
+        ApprovalService().record_decision(request_id, "rejected", reason=reason)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail="Reservation request is no longer actionable") from exc
 
 
 @app.post("/admin/reload-knowledge", status_code=204)

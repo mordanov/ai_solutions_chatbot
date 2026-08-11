@@ -18,4 +18,4 @@ class ReservationDraft(BaseModel):
     license_plate: str | None = None
     start_datetime: str | None = None
     end_datetime: str | None = None
-    status: Literal["draft", "submitted"] = "draft"
+    status: Literal["draft", "submitted", "pending_approval", "approved", "rejected", "expired"] = "draft"

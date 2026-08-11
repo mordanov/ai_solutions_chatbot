@@ -1,18 +1,23 @@
 # CityPark Chatbot
 
 An intelligent parking reservation chatbot built with LangChain, LangGraph, and a
-Milvus vector database. Stage 1 of a 4-stage delivery.
+Milvus vector database. Stages 1–3 delivered.
 
 ## Architecture
 
 ```
 User → Streamlit UI → FastAPI → LangGraph Workflow
+                                    ├── Pending Check Node        ← Stage 3
                                     ├── Intent Router
                                     ├── RAG Pipeline (Milvus + OpenAI)
                                     ├── Dynamic Data Node (PostgreSQL)
                                     ├── Reservation Collector
+                                    ├── Approval Request Node     ← Stage 3
                                     ├── Guard Rails (Presidio + rules)
                                     └── Respond
+
+Admin SMTP Email ←──────────────────┘
+Admin curl approve/reject ──────────→ POST /admin/reservation/{id}/approve|reject
 ```
 
 ## Tech Stack
@@ -63,14 +68,19 @@ See `.env.example` for the complete list. Required:
 | `OPENAI_API_KEY` | OpenAI API key |
 | `DATABASE_URL` | SQLAlchemy URL (default: SQLite) |
 | `MILVUS_URI` | Milvus server URI |
-| `ADMIN_TOKEN` | Bearer token for `/admin/reload-knowledge` |
+| `ADMIN_TOKEN` | Bearer token for admin endpoints |
+| `SMTP_HOST` | SMTP server host (MailHog: `localhost`) |
+| `SMTP_PORT` | SMTP server port (MailHog: `1025`) |
+| `ADMIN_EMAIL` | Email address that receives approval requests |
+| `APPROVAL_TIMEOUT_SECONDS` | Seconds before a pending request expires (default: `300`) |
 
 ## Running
 
-### 1 — Start infrastructure
+### 1 — Start infrastructure (includes MailHog for dev SMTP)
 
 ```bash
 docker compose up -d
+# MailHog web UI available at http://localhost:8025
 ```
 
 ### 2 — Initialise the database
@@ -122,6 +132,7 @@ src/chatbot/
 ├── data/              — SQLAlchemy models, repository, seed
 ├── reservation/       — ReservationDraft model + validator
 ├── guard_rails/       — Presidio PII scanner + rule blocklist
+├── approval/          — Stage 3: ApprovalRequest model, PendingStore, SmtpNotifier, ApprovalService
 └── evaluation/        — Recall@5 / Precision@5 metrics + runner
 ```
 
@@ -140,6 +151,40 @@ Or call the admin endpoint:
 curl -X POST http://localhost:8000/admin/reload-knowledge \
      -H "Authorization: Bearer $ADMIN_TOKEN"
 ```
+
+## Stage 3: Human-in-the-Loop Admin Approval
+
+When a user submits a complete reservation, the chatbot:
+
+1. Sends an email to `ADMIN_EMAIL` via SMTP containing full reservation details and two curl commands to approve or reject.
+2. Transitions the reservation status to `pending_approval` and informs the user.
+3. On every subsequent user message, `pending_check_node` checks for an admin decision. When one arrives the user is notified immediately; if the timeout elapses the request is marked `expired`.
+
+### Demo walkthrough
+
+```bash
+# 1 — Submit a reservation via the chat UI (or API):
+curl -s -X POST http://localhost:8000/chat \
+  -H "Content-Type: application/json" \
+  -d '{"session_id":"demo","message":"Book a space for Alice Smith, plate ABC123, 15 Aug 10am to 16 Aug 10am"}'
+
+# 2 — Check MailHog for the approval email: http://localhost:8025
+#     Copy the REQUEST_ID from the email subject line.
+
+# 3 — Approve (replace <REQUEST_ID> and <ADMIN_TOKEN>):
+curl -s -X POST http://localhost:8000/admin/reservation/<REQUEST_ID>/approve \
+  -H "Authorization: Bearer <ADMIN_TOKEN>"
+
+# 4 — Send any message in the same session — the bot reports the approval.
+
+# 5 — To reject instead (optional reason in body):
+curl -s -X POST http://localhost:8000/admin/reservation/<REQUEST_ID>/reject \
+  -H "Authorization: Bearer <ADMIN_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"reason": "No available spaces on those dates"}'
+```
+
+For the full walkthrough including timeout testing, see `specs/002-admin-approval/quickstart.md`.
 
 ## Evaluation
 

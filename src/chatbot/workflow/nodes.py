@@ -162,8 +162,9 @@ def guard_rails_node(state: ConversationState) -> ConversationState:
 
         draft = state.response_draft or ""
 
-        # Reservation confirmations legitimately echo the user's own data — skip PII scan
-        if state.reservation and state.reservation.status == "submitted":
+        # Approval-related messages legitimately echo the user's own reservation data — skip PII scan
+        _approval_statuses = {"pending_approval", "approved", "rejected", "expired"}
+        if state.approval_request_id or (state.reservation and state.reservation.status in _approval_statuses):
             state.response_final = draft
             return state
 
@@ -274,14 +275,89 @@ def reservation_validator_node(state: ConversationState) -> ConversationState:
             state.response_draft = "Please provide: " + "; ".join(errors)
         else:
             state.reservation.status = "submitted"
-            state.response_draft = (
-                f"Your reservation has been submitted!\n"
-                f"Name: {state.reservation.first_name} {state.reservation.surname}\n"
-                f"Plate: {state.reservation.license_plate}\n"
-                f"From: {state.reservation.start_datetime} to {state.reservation.end_datetime}"
-            )
     except Exception as exc:
         logger.error("reservation_validator_node failed: %s", exc)
         state.error = str(exc)
         state.response_draft = "There was a problem processing your reservation."
+    return state
+
+
+def approval_request_node(state: ConversationState) -> ConversationState:
+    """Send approval request email to admin and transition reservation to pending_approval."""
+    try:
+        from chatbot.approval.service import ApprovalService
+
+        res = state.reservation
+        if res is None:
+            state.response_draft = "No reservation found to submit."
+            return state
+
+        service = ApprovalService()
+        request = service.create_request(
+            session_id=state.session_id,
+            first_name=res.first_name or "",
+            surname=res.surname or "",
+            license_plate=res.license_plate or "",
+            start_datetime=res.start_datetime or "",
+            end_datetime=res.end_datetime or "",
+        )
+        state.approval_request_id = request.request_id
+        state.reservation.status = "pending_approval"
+        state.response_draft = (
+            "Your reservation request has been sent to the administrator for approval. "
+            "You'll be notified as soon as a decision is made. "
+            "Feel free to ask me anything else in the meantime!"
+        )
+    except Exception as exc:
+        logger.error("approval_request_node failed: %s", exc)
+        state.error = str(exc)
+        state.response_draft = (
+            "Your reservation details are complete, but I couldn't notify the administrator. "
+            "Please try again later."
+        )
+    return state
+
+
+def pending_check_node(state: ConversationState) -> ConversationState:
+    """Check if a pending admin decision has arrived for this session."""
+    try:
+        from chatbot.approval.store import pending_store
+
+        pending = pending_store.get_pending_for_session(state.session_id)
+        if pending is None:
+            return state
+
+        if pending_store.is_expired(pending.request_id):
+            pending_store.clear_session(state.session_id)
+            if state.reservation:
+                state.reservation.status = "expired"
+            state.response_draft = (
+                "Your reservation request timed out before the administrator responded. "
+                "Please resubmit if you'd still like to book."
+            )
+            return state
+
+        if pending.decision is not None:
+            pending_store.clear_session(state.session_id)
+            state.approval_request_id = pending.request_id
+            if pending.decision == "approved":
+                if state.reservation:
+                    state.reservation.status = "approved"
+                state.response_draft = (
+                    f"✅ Your reservation has been approved!\n"
+                    f"Name: {pending.first_name} {pending.surname} | "
+                    f"Plate: {pending.license_plate}\n"
+                    f"From: {pending.start_datetime} → To: {pending.end_datetime}"
+                )
+            else:
+                if state.reservation:
+                    state.reservation.status = "rejected"
+                reason_line = f"\nReason: {pending.reason}" if pending.reason else ""
+                state.response_draft = (
+                    f"❌ Your reservation was not approved.{reason_line}\n"
+                    "Please contact us if you have questions or would like to try different dates."
+                )
+    except Exception as exc:
+        logger.error("pending_check_node failed: %s", exc)
+        state.error = str(exc)
     return state
