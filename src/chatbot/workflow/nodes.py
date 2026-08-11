@@ -91,7 +91,7 @@ def retrieve_and_generate(state: ConversationState) -> ConversationState:
 
         llm = _get_llm()
         chain = build_rag_chain(llm)
-        state.response_draft = chain.invoke(
+        state.response_draft = chain(
             {"question": last_human.content, "context": chunks}
         )
     except Exception as exc:
@@ -161,6 +161,12 @@ def guard_rails_node(state: ConversationState) -> ConversationState:
         from chatbot.guard_rails.scanner import PiiScanner
 
         draft = state.response_draft or ""
+
+        # Reservation confirmations legitimately echo the user's own data — skip PII scan
+        if state.reservation and state.reservation.status == "submitted":
+            state.response_final = draft
+            return state
+
         blocklist = RuleBlocklist()
         scanner = PiiScanner()
 
@@ -232,12 +238,16 @@ def reservation_collector_node(state: ConversationState) -> ConversationState:
             ]
         )
         import json
+        import re
 
         result = llm.invoke(
             extract_prompt.format_messages(message=last_human.content)
         )
         try:
-            raw = json.loads(result.content)
+            # Strip markdown code fences that LLMs often add around JSON
+            content = re.sub(r"^```(?:json)?\s*", "", result.content.strip())
+            content = re.sub(r"\s*```$", "", content)
+            raw = json.loads(content)
             for field in ("first_name", "surname", "license_plate", "start_datetime", "end_datetime"):
                 val = raw.get(field)
                 if val is not None:

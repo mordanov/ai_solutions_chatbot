@@ -5,7 +5,7 @@ from datetime import datetime
 from chatbot.reservation.models import ReservationDraft
 
 _PLATE_RE = re.compile(r"^[A-Z0-9]{2,10}$")
-_DT_FORMATS = ["%Y-%m-%d %H:%M", "%Y-%m-%dT%H:%M", "%d/%m/%Y %H:%M"]
+_DT_FORMATS = ["%Y-%m-%d %H:%M", "%Y-%m-%dT%H:%M", "%d/%m/%Y %H:%M", "%d.%m.%Y %H:%M"]
 
 
 def _parse_dt(value: str) -> datetime | None:

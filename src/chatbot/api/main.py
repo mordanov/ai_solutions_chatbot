@@ -62,8 +62,11 @@ async def chat(req: ChatRequest) -> ChatResponse:
             session_id=session_id,
             messages=[HumanMessage(content=req.message)],
         )
-        result: ConversationState = compiled_graph.invoke(initial_state)
-        response_text = result.response_final or result.response_draft or "No response generated."
+        raw = compiled_graph.invoke(initial_state)
+        response_text = (
+            raw.get("response_final") or raw.get("response_draft") or "No response generated."
+        )
+        intent = raw.get("intent")
     except Exception as exc:
         logger.error("chat endpoint error: %s", exc)
         raise HTTPException(status_code=500, detail="Internal server error") from exc
@@ -72,7 +75,7 @@ async def chat(req: ChatRequest) -> ChatResponse:
     return ChatResponse(
         session_id=session_id,
         response=response_text,
-        intent=result.intent,
+        intent=intent,
         latency_ms=latency_ms,
     )
 
