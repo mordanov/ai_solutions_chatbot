@@ -17,6 +17,8 @@ def main() -> None:
 
     print(f"Connecting to Milvus and ingesting documents from {data_dir} …")
     store = MilvusVectorStore()
+    store.drop_collection()
+    store = MilvusVectorStore()  # fresh collection after drop
     count = ingest_documents(data_dir, store)
     print(f"Done. {count} chunks indexed.")
 

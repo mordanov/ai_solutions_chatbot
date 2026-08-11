@@ -4,7 +4,9 @@ import uuid
 import httpx
 import streamlit as st
 
-_API_BASE = "http://localhost:8000"
+import os
+
+_API_BASE = os.getenv("API_BASE_URL", "http://localhost:8000")
 
 st.set_page_config(page_title="CityPark Chatbot", page_icon="🅿️")
 st.title("🅿️ CityPark Assistant")
