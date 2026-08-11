@@ -45,6 +45,13 @@ class PendingStore:
         age = (datetime.now(UTC) - req.created_at).total_seconds()
         return age > settings.approval_timeout_seconds
 
+    def get_all_pending(self) -> list[ApprovalRequest]:
+        """Return all undecided, non-expired requests."""
+        return [
+            req for req in _by_request.values()
+            if req.decision is None and not self.is_expired(req.request_id)
+        ]
+
     def clear_session(self, session_id: str) -> None:
         request_id = _by_session.pop(session_id, None)
         if request_id:

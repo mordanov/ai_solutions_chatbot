@@ -81,6 +81,14 @@ async def chat(req: ChatRequest) -> ChatResponse:
     )
 
 
+@app.get("/admin/reservations/pending")
+async def list_pending_reservations(_: None = Depends(_require_admin)) -> list[dict]:
+    """Return all pending (undecided, non-expired) approval requests."""
+    from chatbot.approval.store import pending_store
+
+    return [req.model_dump(mode="json") for req in pending_store.get_all_pending()]
+
+
 @app.post("/admin/reservation/{request_id}/approve", status_code=204)
 async def approve_reservation(
     request_id: str,
