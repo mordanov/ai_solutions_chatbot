@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: pip install ruff
+      - run: ruff check .
+
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt -e .
+      - name: Run unit tests
+        env:
+          OPENAI_API_KEY: "sk-test-placeholder"
+          DATABASE_URL: "sqlite:///./test.db"
+          MILVUS_URI: "http://localhost:19530"
+          ADMIN_TOKEN: "ci-test-token"
+        run: pytest tests/unit/ -v --tb=short
