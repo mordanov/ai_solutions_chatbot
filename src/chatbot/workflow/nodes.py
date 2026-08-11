@@ -164,7 +164,7 @@ def guard_rails_node(state: ConversationState) -> ConversationState:
 
         # Approval-related messages legitimately echo the user's own reservation data — skip PII scan
         _approval_statuses = {"pending_approval", "approved", "rejected", "expired"}
-        if state.reservation and state.reservation.status in _approval_statuses:
+        if state.approval_request_id or (state.reservation and state.reservation.status in _approval_statuses):
             state.response_final = draft
             return state
 
@@ -339,6 +339,7 @@ def pending_check_node(state: ConversationState) -> ConversationState:
 
         if pending.decision is not None:
             pending_store.clear_session(state.session_id)
+            state.approval_request_id = pending.request_id
             if pending.decision == "approved":
                 if state.reservation:
                     state.reservation.status = "approved"

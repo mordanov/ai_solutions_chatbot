@@ -114,3 +114,16 @@ def test_still_pending_no_decision_returns_unchanged():
     result = pending_check_node(state)
 
     assert result.response_draft is None
+
+
+def test_approved_decision_without_reservation_in_state_sets_approval_request_id():
+    """Fresh-state (no reservation object) after admin approves — approval_request_id is set so
+    guard_rails can bypass PII scan even without state.reservation."""
+    req = _seed("sess-fresh-approved", decision="approved")
+    # Simulate what the chat endpoint does: fresh ConversationState with no reservation
+    state = ConversationState(session_id="sess-fresh-approved")
+    result = pending_check_node(state)
+
+    assert result.response_draft is not None
+    assert "approved" in result.response_draft.lower() or "✅" in result.response_draft
+    assert result.approval_request_id == req.request_id
