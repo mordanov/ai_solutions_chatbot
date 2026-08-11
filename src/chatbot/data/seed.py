@@ -1,6 +1,7 @@
 """Seed the database with sample data for development and testing."""
-from datetime import datetime, time
+from datetime import UTC, datetime, time
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from chatbot.data.models import ParkingAvailability, ParkingHours, ParkingRate
@@ -46,19 +47,24 @@ HOURS = [
     ParkingHours(day_of_week=6, open_time=time(8, 0), close_time=time(20, 0)),   # Sun
 ]
 
-AVAILABILITY = ParkingAvailability(
-    id=1,
-    total_spaces=350,
-    available_spaces=120,
-    reserved_spaces=30,
-    updated_at=datetime.utcnow(),
-)
-
 
 def seed(session: Session) -> None:
-    for rate in RATES:
-        session.merge(rate)
-    for hours in HOURS:
-        session.merge(hours)
-    session.merge(AVAILABILITY)
+    """Insert seed data only if each table is empty — safe to call multiple times."""
+    if not session.scalars(select(ParkingRate)).first():
+        session.add_all(RATES)
+
+    if not session.scalars(select(ParkingHours)).first():
+        session.add_all(HOURS)
+
+    if session.get(ParkingAvailability, 1) is None:
+        session.add(
+            ParkingAvailability(
+                id=1,
+                total_spaces=350,
+                available_spaces=120,
+                reserved_spaces=30,
+                updated_at=datetime.now(UTC),
+            )
+        )
+
     session.commit()
