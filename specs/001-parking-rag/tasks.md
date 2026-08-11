@@ -165,7 +165,7 @@ Then test invalid licence plate mid-flow — verify re-prompt without losing pri
 - [X] T046 [P] Add structured logging to all modules using Python `logging`; log at DEBUG for retrieval details, INFO for request/response lifecycle, ERROR for exceptions; configure log format in `src/chatbot/config.py`
 - [X] T047 Create `README.md` documenting: project purpose, architecture overview, tech stack, prerequisites, installation, environment variables, how to run (Streamlit + FastAPI), how to run tests, project structure, RAG setup, evaluation results placeholder
 - [X] T048 [P] Create `.github/workflows/ci.yml` GitHub Actions workflow running `pytest tests/unit/` on every push to `main` and on every pull request; add `ruff check .` as a linting step (FR-012 — extra credit, SHOULD)
-- [ ] T049 [P] Create `docs/presentation/` directory with a PowerPoint file (`parking_chatbot.pptx`) covering: solution overview, architecture diagram, RAG pipeline walkthrough, guard-rails mechanism, reservation workflow, evaluation results, and screenshots of the running Streamlit UI (FR-013 — extra credit, SHOULD)
+- [X] T049 [P] Create `docs/presentation/` directory with a PowerPoint file (`parking_chatbot.pptx`) covering: solution overview, architecture diagram, RAG pipeline walkthrough, guard-rails mechanism, reservation workflow, evaluation results, and screenshots of the running Streamlit UI (FR-013 — extra credit, SHOULD)
 
 ---
 
