@@ -1,4 +1,4 @@
-# Stage 3 — Retrospective Summary
+# Stage 2 — Retrospective Summary
 
 **Project**: CityPark Intelligent Parking Chatbot  
 **Feature**: Human-in-the-Loop Admin Reservation Approval  
