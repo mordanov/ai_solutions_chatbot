@@ -1,9 +1,9 @@
 """Unit tests for MCP server tool handler — called directly without subprocess."""
 import asyncio
+
 import pytest
 
 from chatbot.storage.server import write_reservation_record
-
 
 VALID = {
     "name": "Alice Smith",
