@@ -59,6 +59,20 @@ def _reject(request_id: str, reason: str) -> bool:
     return r.status_code == 204
 
 
+def _fetch_log() -> list[str] | None:
+    try:
+        r = httpx.get(
+            f"{_API_BASE}/admin/reservations/log",
+            headers=_headers,
+            timeout=10,
+        )
+        if r.status_code != 200:
+            return None
+        return r.json()
+    except Exception:
+        return None
+
+
 # ── Header ────────────────────────────────────────────────────────────────────
 col_title, col_refresh = st.columns([5, 1])
 with col_title:
@@ -77,13 +91,12 @@ if error:
 
 if not pending:
     st.success("✅ No pending approvals — all clear.")
-    st.stop()
-
-st.caption(f"{len(pending)} request(s) awaiting decision")
-st.divider()
+else:
+    st.caption(f"{len(pending)} request(s) awaiting decision")
+    st.divider()
 
 # ── Cards ─────────────────────────────────────────────────────────────────────
-for req in pending:
+for req in (pending or []):
     rid = req["request_id"]
     created = req["created_at"][:16].replace("T", " ")
 
@@ -119,3 +132,21 @@ for req in pending:
                         st.rerun()
                     else:
                         st.error("Failed — request may have already been decided.")
+
+# ── Audit Log ─────────────────────────────────────────────────────────────────
+st.divider()
+with st.expander("📋 Approved Reservations Audit Log (MCP-written)", expanded=False):
+    log_lines = _fetch_log()
+    if log_lines is None:
+        st.warning("Could not fetch audit log.")
+    elif not log_lines:
+        st.info("No approved reservations written yet.")
+    else:
+        rows = []
+        for line in log_lines:
+            parts = [p.strip() for p in line.split("|")]
+            if len(parts) == 4:
+                rows.append({"Name": parts[0], "Plate": parts[1], "Period": parts[2], "Approved (UTC)": parts[3]})
+            else:
+                rows.append({"Name": line, "Plate": "", "Period": "", "Approved (UTC)": ""})
+        st.dataframe(rows, use_container_width=True, hide_index=True)
