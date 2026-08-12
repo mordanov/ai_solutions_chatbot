@@ -5,19 +5,44 @@ Milvus vector database. Stages 1–4 delivered.
 
 ## Architecture
 
-```
-User → Streamlit UI → FastAPI → LangGraph Workflow
-                                    ├── Pending Check Node        ← Stage 3
-                                    ├── Intent Router
-                                    ├── RAG Pipeline (Milvus + OpenAI)
-                                    ├── Dynamic Data Node (PostgreSQL)
-                                    ├── Reservation Collector
-                                    ├── Approval Request Node     ← Stage 3
-                                    ├── Guard Rails (Presidio + rules)
-                                    └── Respond
+```mermaid
+flowchart TD
+    User(["👤 User"])
+    UI["Streamlit UI"]
+    API["FastAPI\n/chat endpoint"]
+    Admin(["🔑 Administrator"])
+    SMTP["SMTP / MailHog"]
+    MCP["MCP Storage Server\nchatbot.storage"]
+    File[("reservations.txt")]
 
-Admin SMTP Email ←──────────────────┘
-Admin curl approve/reject ──────────→ POST /admin/reservation/{id}/approve|reject
+    subgraph LangGraph ["LangGraph StateGraph"]
+        direction TB
+        PC["pending_check_node\ncheck for admin decision"]
+        RI["route_intent\nclassify user message"]
+        RAG["retrieve_and_generate\nMilvus + OpenAI RAG"]
+        DYN["dynamic_data_node\nPricing · Hours · Availability\nPostgreSQL"]
+        OOS["out_of_scope_node"]
+        RC["reservation_collector_node\nextract fields via LLM"]
+        RV["reservation_validator_node\nvalidate all fields"]
+        AR["approval_request_node\ncreate request + notify admin"]
+        GR["guard_rails_node\nPresidio PII + rule blocklist"]
+        RSP["respond\nappend AIMessage"]
+    end
+
+    User -->|message| UI -->|POST /chat| API --> PC
+    PC -->|no pending decision| RI
+    PC -->|decision arrived| GR
+    RI -->|info_query| RAG --> GR
+    RI -->|pricing · hours · availability| DYN --> GR
+    RI -->|out_of_scope| OOS --> GR
+    RI -->|reservation| RC --> RV
+    RV -->|fields missing| RSP
+    RV -->|all fields valid| AR --> GR
+    GR --> RSP --> API -->|response| UI -->|answer| User
+
+    AR -->|approval email| SMTP -->|curl approve/reject| Admin
+    Admin -->|"POST /admin/reservation/{id}/approve"| API
+    API -->|write_record| MCP --> File
 ```
 
 ## Tech Stack
