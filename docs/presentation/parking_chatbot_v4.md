@@ -1056,53 +1056,64 @@ decision/expired in state → `guard_rails_node` · no pending → `route_intent
 ---
 
 <!-- ══════════════════════════════════════════════════════════════════
-     SLIDE 17 — Possible Screenshots
+     SLIDE 17 — Demo: Main Chat Screen
      ══════════════════════════════════════════════════════════════════ -->
 <!-- _class: band -->
 
-# Possible Screenshots
+# Demo — CityPark Assistant Chat
 
-<div class="cols-4">
-<div class="card green">
+![bg right:65%](./main_screen.png)
 
-### 1 · CI — spaCy step
-GitHub Actions run showing **"Download spaCy model"** step executing between `pip install` and `pytest`.
+**Multi-turn reservation flow**
 
-Confirms CI fix is in place — guard-rails tests no longer fail on a missing `en_core_web_lg` model.
+- User submits partial info → bot requests missing fields
+- Date format rejected → bot explains expected format
+- All fields valid → `approval_request_node` fires
+- Next message after admin approves → ✅ notification delivered
 
-</div>
-<div class="card teal">
+<div class="bar teal">LangGraph routes each turn through the correct node — field collection, validation, approval request, and notification are all separate graph nodes.</div>
 
-### 2 · pytest — 98 passed
-Terminal output of `pytest tests/unit/ -v` with the final summary line:
+---
 
+<!-- ══════════════════════════════════════════════════════════════════
+     SLIDE 18 — Demo: Admin Page & MCP Audit Log
+     ══════════════════════════════════════════════════════════════════ -->
+<!-- _class: band -->
+
+# Demo — Admin Page · MCP Audit Log
+
+![bg right:65%](./admin_page.png)
+
+**Stage 3 (HITL) + Stage 4 (MCP) visible in one view**
+
+- `GET /admin/reservations/log` reads `data/reservations.txt`
+- File was written by the MCP subprocess on approval
+- Table parsed from pipe-delimited format: `Name | Plate | Period | Approved (UTC)`
+- Expander renders even when no pending approvals remain
+
+<div class="bar green">Richard Richard · 0912GHT · 12.08.2026 23:00 → 14.08.2026 09:00 · approved 2026-08-12 17:33 UTC</div>
+
+---
+
+<!-- ══════════════════════════════════════════════════════════════════
+     SLIDE 19 — LangGraph Orchestration Diagram
+     ══════════════════════════════════════════════════════════════════ -->
+<!-- _class: band -->
+
+# Stage 4 — LangGraph Orchestration Graph
+
+![bg right:62%](./langgraph_diagram.png)
+
+**Generated from running code**
+
+```python
+compiled_graph.get_graph().draw_mermaid_png()
 ```
-98 passed in 1.96s
-```
 
-Demonstrates full suite passing with no external services.
+- **Solid arrows** — unconditional edges
+- **Dashed arrows** — conditional routing
+- Every message enters `pending_check_node` first
+- All generation paths converge at `guard_rails_node`
+- `respond` is the single exit point before `__end__`
 
-</div>
-<div class="card navy">
-
-### 3 · PR diff — new test files
-GitHub "Files changed" view showing `test_workflow_graph.py` and `test_pipeline_integration.py` as new files, with `test_workflow_nodes.py` expanded.
-
-Highlights the scope: test-only PR, zero `src/` changes.
-
-</div>
-<div class="card amber">
-
-### 4 · Admin page — pending card
-Streamlit Admin page (`/Admin`) showing a pending reservation card with name, plate, dates, and Approve / Reject buttons.
-
-End-to-end proof that Stage 3 HITL UI is wired to the LangGraph approval flow.
-
-</div>
-</div>
-
-<div class="bar navy">
-
-Stage 1 ✅ RAG Foundation &nbsp;·&nbsp; Stage 3 ✅ HITL Approval &nbsp;·&nbsp; Stage 4 ✅ MCP Storage &nbsp;·&nbsp; Stage 4 ✅ Orchestration Hardening
-
-</div>
+<div class="bar navy">9 nodes · 3 routing functions · zero cycles — acyclic per-turn execution with full conversation state preserved in `ConversationState`</div>
