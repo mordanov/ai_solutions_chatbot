@@ -30,6 +30,10 @@ The LangGraph pipeline connecting all four stages was already fully implemented 
 | Spec artifacts | `specs/004-langgraph-orchestration/` | spec.md, plan.md, research.md, data-model.md, quickstart.md, contracts/pipeline-test-contract.md, checklists/requirements.md, tasks.md |
 | Agent context | `CLAUDE.md` | Updated speckit pointer from `003-mcp-reservation-storage/plan.md` to `004-langgraph-orchestration/plan.md` |
 | **Total unit tests** | — | **98 passing** (up from 69, +29 new) |
+| Audit log endpoint | `src/chatbot/api/main.py` | `GET /admin/reservations/log` — reads `data/reservations.txt`, returns lines as JSON array, requires admin token |
+| Admin page audit log | `src/chatbot/pages/Admin.py` | Expander below pending cards; fetches log endpoint and renders pipe-delimited records as a Name / Plate / Period / Approved (UTC) table |
+| LangGraph diagram | `docs/presentation/langgraph_diagram.png` | Generated via `compiled_graph.get_graph().draw_mermaid_png()` — all 9 nodes, solid and dashed edges |
+| Presentation | `docs/presentation/parking_chatbot_v4.md` | Updated v4 slides: 98-test counts, rewritten Tests & CI slide, Stage 4 hardening slide, three real screenshot slides (chat UI, admin audit log, LangGraph diagram) replacing placeholder cards |
 
 ---
 
@@ -40,7 +44,7 @@ The LangGraph pipeline connecting all four stages was already fully implemented 
 | Actual evaluation numbers in README | `pymilvus` is not installed in the dev environment; `scripts/evaluate.py` requires a live Milvus instance | README documents how to run evaluation and the expected format; numbers are not fabricated |
 | Load/performance testing | Requires a live stack (Milvus, PostgreSQL, SMTP, running API); not achievable in unit CI | Documented as out-of-scope for automated CI in `research.md` |
 | Architecture diagram (visual) | README has ASCII art; a proper diagram (e.g. Mermaid or PNG) was not added | The ASCII diagram is functional; a visual upgrade was not in the task list |
-| PowerPoint presentation | Extra credit item from the requirements; no tooling available in this session | Can be created manually from the spec and README content |
+| PowerPoint presentation | Extra credit item from the requirements; no tooling available in this session | Marp presentation created instead (`parking_chatbot_v4.md` → HTML/PDF via Marp CLI) |
 | `speckit-git-commit` after each phase | The optional after-hooks were not triggered; changes were not committed mid-session | All changes are uncommitted on the branch; a single commit at the end is fine |
 
 ---
