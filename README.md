@@ -227,4 +227,22 @@ Writes a full JSON report to `eval/report_<timestamp>.json`.
 
 ## Evaluation Results
 
-*To be populated after a live run against the seeded knowledge base.*
+Run the evaluation against the seeded knowledge base after starting the full Docker stack:
+
+```bash
+docker compose up -d          # starts Milvus, PostgreSQL
+python scripts/init_db.py --seed
+python scripts/ingest.py      # index parking_info/ into Milvus
+python scripts/evaluate.py    # writes eval/report_<timestamp>.json
+```
+
+Sample output format (replace with live values after running):
+
+```
+Recall@5:        <value>   # fraction of relevant chunks retrieved in top-5
+Precision@5:     <value>   # fraction of retrieved chunks that are relevant
+Avg latency:     <value> ms
+Report written → eval/report_<timestamp>.json
+```
+
+**Note**: Evaluation requires a running Milvus instance and a valid `OPENAI_API_KEY`. Unit tests run without either dependency.
