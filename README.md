@@ -1,7 +1,7 @@
 # CityPark Chatbot
 
 An intelligent parking reservation chatbot built with LangChain, LangGraph, and a
-Milvus vector database. Stages 1–3 delivered.
+Milvus vector database. Stages 1–4 delivered.
 
 ## Architecture
 
@@ -73,6 +73,7 @@ See `.env.example` for the complete list. Required:
 | `SMTP_PORT` | SMTP server port (MailHog: `1025`) |
 | `ADMIN_EMAIL` | Email address that receives approval requests |
 | `APPROVAL_TIMEOUT_SECONDS` | Seconds before a pending request expires (default: `300`) |
+| `RESERVATIONS_FILE_PATH` | Path to the approved reservations audit log (default: `data/reservations.txt`) |
 
 ## Running
 
@@ -133,6 +134,7 @@ src/chatbot/
 ├── reservation/       — ReservationDraft model + validator
 ├── guard_rails/       — Presidio PII scanner + rule blocklist
 ├── approval/          — Stage 3: ApprovalRequest model, PendingStore, SmtpNotifier, ApprovalService
+├── storage/           — Stage 4: MCP server + ReservationWriter (approved record audit log)
 └── evaluation/        — Recall@5 / Precision@5 metrics + runner
 ```
 
@@ -185,6 +187,34 @@ curl -s -X POST http://localhost:8000/admin/reservation/<REQUEST_ID>/reject \
 ```
 
 For the full walkthrough including timeout testing, see `specs/002-admin-approval/quickstart.md`.
+
+## Stage 4: MCP Reservation Storage
+
+When an administrator approves a reservation via `POST /admin/reservation/{id}/approve`, the system automatically records the approval to a persistent text file using an embedded **MCP (Model Context Protocol) server** subprocess.
+
+### Storage format
+
+Each approved record is appended as one pipe-delimited line:
+
+```
+Alice Smith | ABC123 | 2026-08-15 10:00 → 2026-08-16 10:00 | 2026-08-12 14:30
+```
+
+Fields: `Name | Car Number | Reservation Period | Approval Time (UTC)`
+
+### Storage file location
+
+Configurable via `RESERVATIONS_FILE_PATH` (default: `data/reservations.txt`). The file is created on the first approval if it does not exist. This file is excluded from version control.
+
+### Architecture
+
+The `chatbot.storage` package contains three modules:
+
+- **`writer.py`** — `ReservationWriter`: appends one record with `fcntl.LOCK_EX` for concurrent-write safety
+- **`server.py`** — MCP server: exposes `write_reservation_record` tool; run as a subprocess (`python -m chatbot.storage.server`)
+- **`client.py`** — `ReservationStorageClient`: spawns the server via stdio transport, calls the tool, raises `RuntimeError` on failure
+
+Storage write failures are logged but do not roll back the approval decision — the user still receives their chat notification.
 
 ## Evaluation
 
