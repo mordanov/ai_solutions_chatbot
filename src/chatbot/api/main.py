@@ -95,15 +95,31 @@ async def approve_reservation(
     _: None = Depends(_require_admin),
 ) -> None:
     """Record an admin approval decision for a pending reservation."""
+    from datetime import UTC, datetime
+
     from chatbot.approval.service import ApprovalService
     from chatbot.approval.store import pending_store
+    from chatbot.storage.client import ReservationStorageClient
 
-    if pending_store.get_by_request_id(request_id) is None:
+    req = pending_store.get_by_request_id(request_id)
+    if req is None:
         raise HTTPException(status_code=404, detail="Reservation request not found")
     try:
         ApprovalService().record_decision(request_id, "approved")
     except ValueError as exc:
         raise HTTPException(status_code=409, detail="Reservation request is no longer actionable") from exc
+
+    approval_time = datetime.now(UTC).strftime("%Y-%m-%d %H:%M")
+    period = f"{req.start_datetime} → {req.end_datetime}"
+    try:
+        await ReservationStorageClient().write_record(
+            name=f"{req.first_name} {req.surname}",
+            car_number=req.license_plate,
+            reservation_period=period,
+            approval_time=approval_time,
+        )
+    except Exception as exc:
+        logger.error("Storage write failed for request %s: %s", request_id, exc)
 
 
 @app.post("/admin/reservation/{request_id}/reject", status_code=204)

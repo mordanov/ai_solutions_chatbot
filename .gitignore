@@ -57,6 +57,9 @@ minio_data/
 langchain_cache/
 .langchain/
 
+# ── MCP storage (runtime data, not source) ───────────────────────────────────
+data/reservations.txt
+
 # ── Jupyter ──────────────────────────────────────────────────────────────────
 .ipynb_checkpoints/
 *.ipynb_checkpoints
