@@ -29,6 +29,8 @@ jobs:
           cache: pip
       - name: Install dependencies
         run: pip install -r requirements-dev.txt -e .
+      - name: Download spaCy model
+        run: python -m spacy download en_core_web_lg
       - name: Run unit tests
         env:
           OPENAI_API_KEY: "sk-test-placeholder"

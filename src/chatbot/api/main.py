@@ -141,6 +141,17 @@ async def reject_reservation(
         raise HTTPException(status_code=409, detail="Reservation request is no longer actionable") from exc
 
 
+@app.get("/admin/reservations/log")
+async def get_reservations_log(_: None = Depends(_require_admin)) -> list[str]:
+    """Return approved reservations audit log as a list of pipe-delimited lines."""
+    from pathlib import Path
+
+    path = Path(settings.reservations_file_path)
+    if not path.exists():
+        return []
+    return [line for line in path.read_text().splitlines() if line.strip()]
+
+
 @app.post("/admin/reload-knowledge", status_code=204)
 async def reload_knowledge(_: None = Depends(_require_admin)) -> None:
     """Trigger a full knowledge base re-ingestion."""
