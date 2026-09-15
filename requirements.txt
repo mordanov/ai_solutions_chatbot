@@ -14,7 +14,7 @@ alembic>=1.13,<2.0
 
 # API
 fastapi>=0.115,<0.116
-uvicorn[standard]>=0.30,<0.31
+uvicorn[standard]>=0.31.1
 
 # UI
 streamlit>=1.38,<2.0
@@ -27,6 +27,9 @@ spacy>=3.7,<4.0
 # Data validation
 pydantic>=2.7,<3.0
 pydantic-settings>=2.3,<3.0
+
+# MCP
+mcp>=2.0,<3.0
 
 # Config / utils
 python-dotenv>=1.0,<2.0

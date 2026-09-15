@@ -133,11 +133,11 @@ add_text(s, "🅿", Inches(0.5), Inches(0.3), Inches(1.5), Inches(1.5),
 add_text(s, "CityPark Intelligent Parking Chatbot",
          Inches(2.0), Inches(0.5), Inches(10.8), Inches(1.1),
          size=36, bold=True, color=WHITE)
-add_text(s, "Stage 1 — RAG Foundation",
+add_text(s, "Stages 1–3 — RAG Foundation · Reservation · Human-in-the-Loop Approval",
          Inches(2.0), Inches(1.45), Inches(10.8), Inches(0.7),
          size=22, color=RGBColor(0xB0, 0xC8, 0xE0))
 
-add_text(s, "Solution Overview  ·  Architecture  ·  RAG Pipeline  ·  Guard Rails  ·  Reservation  ·  Evaluation",
+add_text(s, "Overview  ·  Architecture  ·  RAG  ·  Guard Rails  ·  Reservation  ·  HITL Approval  ·  Evaluation",
          Inches(0.5), Inches(3.0), Inches(12.3), Inches(0.6),
          size=14, color=WHITE, align=PP_ALIGN.CENTER)
 
@@ -702,11 +702,146 @@ add_text(s, "pythonpath = [\"src\"] in pyproject.toml — no PYTHONPATH hacks ne
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SLIDE 12 — What's Next
+# SLIDE 12 — Stage 3 HITL Architecture
 # ══════════════════════════════════════════════════════════════════════════════
 s = prs.slides.add_slide(blank)
 add_rect(s, 0, 0, W, H, LGRAY)
-header_band(s, "What's Next — Stage 2 Roadmap", "Known gaps and planned improvements")
+header_band(s, "Stage 3 — Human-in-the-Loop Approval", "Admin email notification + approve/reject API")
+
+# Architecture description
+add_rect(s, Inches(0.3), Inches(1.55), Inches(12.7), Inches(1.4), WHITE)
+bullet_box(s, [
+    "When reservation validated: approval_request_node sends SMTP email to admin with reservation details and curl commands",
+    "Status transitions: draft → submitted → pending_approval → approved | rejected | expired",
+    "pending_check_node fires first on every user message — polls in-process PendingStore for admin decision",
+    "Free interaction continues while reservation is pending: LangGraph routes to normal flow if no decision yet",
+], Inches(0.45), Inches(1.6), Inches(12.4), Inches(1.3))
+
+# Flow diagram
+flow_box(s, "START", Inches(0.3), Inches(3.2), Inches(1.2), Inches(0.5), DGRAY)
+arrow(s, Inches(1.5), Inches(3.45))
+flow_box(s, "pending_check\n_node", Inches(1.75), Inches(3.2), Inches(1.9), Inches(0.5), ORANGE)
+arrow(s, Inches(3.65), Inches(3.45))
+add_text(s, "pending?", Inches(3.7), Inches(3.15), Inches(1.0), Inches(0.3),
+         size=9, bold=True, color=ORANGE)
+flow_box(s, "route_intent\n(normal flow)", Inches(4.75), Inches(3.2), Inches(2.1), Inches(0.5), TEAL)
+
+# Decision branch
+add_text(s, "decision/expired ↓", Inches(1.85), Inches(3.78), Inches(1.9), Inches(0.28),
+         size=9, color=RED)
+flow_box(s, "guard_rails_node", Inches(1.75), Inches(4.1), Inches(1.9), Inches(0.5), GREEN)
+arrow(s, Inches(3.65), Inches(4.35))
+flow_box(s, "respond → END", Inches(3.9), Inches(4.1), Inches(1.9), Inches(0.5), DGRAY)
+
+# Approval path from reservation
+add_text(s, "← all fields complete", Inches(7.5), Inches(3.15), Inches(2.5), Inches(0.28), size=9, color=DGRAY)
+flow_box(s, "reservation\nvalidator_node", Inches(7.5), Inches(3.2), Inches(2.1), Inches(0.5), TEAL)
+arrow(s, Inches(9.6), Inches(3.45))
+flow_box(s, "approval_request\n_node", Inches(9.85), Inches(3.2), Inches(2.1), Inches(0.5), ORANGE)
+arrow(s, Inches(11.95), Inches(3.45))
+flow_box(s, "guard_rails\n→ respond", Inches(12.0), Inches(3.2), Inches(1.0), Inches(0.5), GREEN)
+
+# Status lifecycle
+add_rect(s, Inches(0.3), Inches(5.0), Inches(12.7), Inches(0.45), NAVY)
+add_text(s, "Reservation Status Lifecycle", Inches(0.45), Inches(5.03), Inches(12.5), Inches(0.35),
+         size=13, bold=True, color=WHITE)
+
+statuses = [
+    ("draft", DGRAY),
+    ("submitted", TEAL),
+    ("pending_approval", ORANGE),
+    ("approved", GREEN),
+    ("rejected / expired", RED),
+]
+sw = Inches(2.35)
+for i, (st, col) in enumerate(statuses):
+    sx = Inches(0.3) + i * (sw + Inches(0.12))
+    add_rect(s, sx, Inches(5.5), sw, Inches(0.5), col)
+    add_text(s, st, sx, Inches(5.52), sw, Inches(0.42),
+             size=12, bold=True, color=WHITE, align=PP_ALIGN.CENTER)
+    if i < 4:
+        add_text(s, "→", sx + sw, Inches(5.52), Inches(0.15), Inches(0.42),
+                 size=14, bold=True, color=DGRAY, align=PP_ALIGN.CENTER)
+
+add_text(s, "PendingStore: module-level dict (session_id→request_id, request_id→ApprovalRequest)  ·  "
+            "Lazy timeout checked per user message  ·  smtplib (stdlib, sync)  ·  MailHog for dev",
+         Inches(0.3), Inches(6.2), Inches(12.7), Inches(0.35),
+         size=11, color=DGRAY, align=PP_ALIGN.CENTER)
+
+# Admin API
+add_rect(s, Inches(0.3), Inches(6.65), Inches(12.7), Inches(0.6), WHITE)
+code_box(s, [
+    "POST /admin/reservation/{request_id}/approve          → 204 (or 401 / 404 / 409)",
+    "POST /admin/reservation/{request_id}/reject  {reason}  → 204 (or 401 / 404 / 409)",
+], Inches(0.35), Inches(6.7), Inches(12.6), Inches(0.52))
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SLIDE 13 — Stage 3 Demo Walkthrough
+# ══════════════════════════════════════════════════════════════════════════════
+s = prs.slides.add_slide(blank)
+add_rect(s, 0, 0, W, H, LGRAY)
+header_band(s, "Stage 3 — Demo Walkthrough", "End-to-end: submit → email → approve → notified")
+
+# Step boxes
+steps = [
+    ("1  Submit reservation", TEAL, [
+        "User provides all reservation fields in chat",
+        "approval_request_node creates ApprovalRequest (UUID)",
+        "SMTP email sent to admin via smtplib / MailHog",
+        "Bot replies: 'Your request is awaiting approval'",
+    ]),
+    ("2  Admin receives email", NAVY, [
+        "Email subject: [Parking Reservation] New request from {name} — {id}",
+        "Body contains: name, plate, dates",
+        "Two curl commands: approve or reject",
+        "MailHog web UI: http://localhost:8025",
+    ]),
+    ("3  Admin decides (curl)", ORANGE, [
+        "curl -X POST .../approve  -H 'Authorization: Bearer <token>'",
+        "Or: .../reject  -d '{\"reason\": \"No spaces\"}'",
+        "Decision stored in PendingStore in-process",
+        "Returns 204 on success · 409 if already decided",
+    ]),
+    ("4  User notified", GREEN, [
+        "User sends any next message",
+        "pending_check_node detects decision",
+        "Approved: ✅ confirmation with details",
+        "Rejected: ❌ message + reason (if given)",
+    ]),
+]
+
+bw = Inches(3.0)
+for i, (title, col, items) in enumerate(steps):
+    bx = Inches(0.3) + i * (bw + Inches(0.24))
+    add_rect(s, bx, Inches(1.55), bw, Inches(4.3), WHITE)
+    add_rect(s, bx, Inches(1.55), bw, Inches(0.45), col)
+    add_text(s, title, bx + Inches(0.1), Inches(1.58), bw - Inches(0.2), Inches(0.38),
+             size=12, bold=True, color=WHITE)
+    bullet_box(s, items, bx + Inches(0.1), Inches(2.1), bw - Inches(0.2), Inches(3.6))
+    if i < 3:
+        add_text(s, "→", bx + bw, Inches(2.8), Inches(0.28), Inches(0.5),
+                 size=22, bold=True, color=DGRAY, align=PP_ALIGN.CENTER)
+
+# Test coverage note
+add_rect(s, Inches(0.3), Inches(6.0), Inches(12.7), Inches(0.55), WHITE)
+bullet_box(s, [
+    "22 approval unit tests across 5 modules: models · store · notifier · service · API · nodes",
+    "API tests use FastAPI TestClient (no real SMTP) · store tests clear module-level dicts for isolation",
+    "pending_check_node tested for: approved, rejected+reason, expired, no-pending (normal flow continues)",
+], Inches(0.4), Inches(6.05), Inches(12.5), Inches(0.5))
+
+add_text(s, "Full walkthrough: specs/002-admin-approval/quickstart.md",
+         Inches(0.3), Inches(6.65), Inches(12.7), Inches(0.3),
+         size=11, color=TEAL, align=PP_ALIGN.CENTER)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SLIDE 14 — What's Next
+# ══════════════════════════════════════════════════════════════════════════════
+s = prs.slides.add_slide(blank)
+add_rect(s, 0, 0, W, H, LGRAY)
+header_band(s, "What's Next — Stage 2 & 4 Roadmap", "Known gaps and planned improvements")
 
 columns = [
     ("Testing", RED, [
@@ -738,8 +873,8 @@ for i, (title, col, items) in enumerate(columns):
              size=14, bold=True, color=WHITE)
     bullet_box(s, items, bx + Inches(0.1), Inches(2.1), bw - Inches(0.2), Inches(4.3))
 
-add_text(s, "Stage 1 ✅ complete  ·  Stage 2: enhanced retrieval + HITL reservation  ·  "
-            "Stage 3: multi-tenant + auth  ·  Stage 4: production hardening",
+add_text(s, "Stage 1 ✅ RAG Foundation  ·  Stage 3 ✅ HITL Approval  ·  "
+            "Stage 2: enhanced retrieval  ·  Stage 4: multi-tenant + production hardening",
          Inches(0.3), Inches(6.9), Inches(12.7), Inches(0.35),
          size=11, color=DGRAY, align=PP_ALIGN.CENTER)
 

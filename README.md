@@ -1,18 +1,53 @@
 # CityPark Chatbot
 
 An intelligent parking reservation chatbot built with LangChain, LangGraph, and a
-Milvus vector database. Stage 1 of a 4-stage delivery.
+Milvus vector database. Stages 1–4 delivered.
+
+Supports free-text multi-turn conversations: users can provide all reservation details in
+a single sentence ("Alice Smith, plate AB1234, from 9 to 18") or across multiple turns.
+Conversation state is persisted across requests within a session via LangGraph's
+`MemorySaver` checkpointer.
 
 ## Architecture
 
-```
-User → Streamlit UI → FastAPI → LangGraph Workflow
-                                    ├── Intent Router
-                                    ├── RAG Pipeline (Milvus + OpenAI)
-                                    ├── Dynamic Data Node (PostgreSQL)
-                                    ├── Reservation Collector
-                                    ├── Guard Rails (Presidio + rules)
-                                    └── Respond
+```mermaid
+flowchart TD
+    User(["👤 User"])
+    UI["Streamlit UI"]
+    API["FastAPI\n/chat endpoint"]
+    Admin(["🔑 Administrator"])
+    SMTP["SMTP / Mailpit"]
+    MCP["MCP Storage Server\nchatbot.storage"]
+    File[("reservations.txt")]
+
+    subgraph LangGraph ["LangGraph StateGraph"]
+        direction TB
+        PC["pending_check_node\ncheck for admin decision"]
+        RI["route_intent\nclassify user message"]
+        RAG["retrieve_and_generate\nMilvus + OpenAI RAG"]
+        DYN["dynamic_data_node\nPricing · Hours · Availability\nPostgreSQL"]
+        OOS["out_of_scope_node"]
+        RC["reservation_collector_node\nextract fields via LLM"]
+        RV["reservation_validator_node\nvalidate all fields"]
+        AR["approval_request_node\ncreate request + notify admin"]
+        GR["guard_rails_node\nPresidio PII + rule blocklist"]
+        RSP["respond\nappend AIMessage"]
+    end
+
+    User -->|message| UI -->|POST /chat| API --> PC
+    PC -->|no pending decision| RI
+    PC -->|decision arrived| GR
+    RI -->|info_query| RAG --> GR
+    RI -->|pricing · hours · availability| DYN --> GR
+    RI -->|out_of_scope| OOS --> GR
+    RI -->|reservation| RC --> RV
+    RV -->|fields missing| RSP
+    RV -->|all fields valid| AR --> GR
+    GR --> RSP --> API -->|response| UI -->|answer| User
+
+    AR -->|approval email| SMTP -->|curl approve/reject| Admin
+    Admin -->|"POST /admin/reservation/{id}/approve"| API
+    API -->|write_record| MCP --> File
 ```
 
 ## Tech Stack
@@ -28,6 +63,8 @@ User → Streamlit UI → FastAPI → LangGraph Workflow
 | API | FastAPI |
 | UI | Streamlit |
 | Guard Rails | Presidio + regex rules |
+| Session memory | LangGraph MemorySaver |
+| Dev SMTP | Mailpit |
 
 ## Prerequisites
 
@@ -63,14 +100,23 @@ See `.env.example` for the complete list. Required:
 | `OPENAI_API_KEY` | OpenAI API key |
 | `DATABASE_URL` | SQLAlchemy URL (default: SQLite) |
 | `MILVUS_URI` | Milvus server URI |
-| `ADMIN_TOKEN` | Bearer token for `/admin/reload-knowledge` |
+| `ADMIN_TOKEN` | Bearer token for admin endpoints |
+| `SMTP_HOST` | SMTP server host (Mailpit: `localhost`) |
+| `SMTP_PORT` | SMTP server port (Mailpit: `1025`) |
+| `ADMIN_EMAIL` | Email address that receives approval requests |
+| `APPROVAL_TIMEOUT_SECONDS` | Seconds before a pending request expires (default: `300`) |
+| `RESERVATIONS_FILE_PATH` | Path to the approved reservations audit log (default: `data/reservations.txt`) |
 
 ## Running
 
-### 1 — Start infrastructure
+### 1 — Start infrastructure (includes Mailpit for dev SMTP)
 
 ```bash
 docker compose up -d
+# Mailpit web UI:  http://localhost:8025
+# API:             http://localhost:8080
+# Streamlit UI:    http://localhost:8501
+# PostgreSQL:      localhost:5433
 ```
 
 ### 2 — Initialise the database
@@ -89,6 +135,7 @@ python scripts/ingest.py
 
 ```bash
 uvicorn chatbot.api.main:app --reload
+# API available at http://localhost:8000 (local dev)
 ```
 
 ### 5 — Start the Streamlit UI
@@ -98,6 +145,10 @@ streamlit run src/chatbot/app.py
 ```
 
 Open <http://localhost:8501> in your browser.
+
+> **Docker Compose ports** differ from local dev defaults because the compose file maps
+> the API to `8080` and PostgreSQL to `5433` to avoid conflicts with other services.
+> Local `uvicorn` still binds to `8000` by default.
 
 ## Running Tests
 
@@ -122,6 +173,8 @@ src/chatbot/
 ├── data/              — SQLAlchemy models, repository, seed
 ├── reservation/       — ReservationDraft model + validator
 ├── guard_rails/       — Presidio PII scanner + rule blocklist
+├── approval/          — Stage 3: ApprovalRequest model, PendingStore, SmtpNotifier, ApprovalService
+├── storage/           — Stage 4: MCP server + ReservationWriter (approved record audit log)
 └── evaluation/        — Recall@5 / Precision@5 metrics + runner
 ```
 
@@ -137,9 +190,83 @@ python scripts/ingest.py
 Or call the admin endpoint:
 
 ```bash
-curl -X POST http://localhost:8000/admin/reload-knowledge \
+# Docker Compose: port 8080 / local dev: port 8000
+curl -X POST http://localhost:8080/admin/reload-knowledge \
      -H "Authorization: Bearer $ADMIN_TOKEN"
 ```
+
+## Stage 3: Human-in-the-Loop Admin Approval
+
+When a user submits a complete reservation, the chatbot:
+
+1. Sends an email to `ADMIN_EMAIL` via SMTP containing full reservation details and two
+   curl commands to approve or reject. SMTP failure is non-fatal — the request is stored
+   and visible in the admin panel regardless.
+2. Transitions the reservation status to `pending_approval` and informs the user.
+3. On every subsequent user message, `pending_check_node` checks for an admin decision.
+   When one arrives the user is notified immediately; if the timeout elapses the request
+   is marked `expired`.
+
+Conversation state (collected fields, pending status) is persisted across HTTP requests
+within the same `session_id` via LangGraph `MemorySaver`.
+
+### Demo walkthrough
+
+```bash
+# Use port 8080 when running via Docker Compose, 8000 for local dev.
+API=http://localhost:8080
+
+# 1 — Submit a reservation via the chat UI (or API).
+#     Free-text is understood — name, plate, and times in any order:
+curl -s -X POST $API/chat \
+  -H "Content-Type: application/json" \
+  -d '{"session_id":"demo","message":"Alice Smith, plate ABC123, from 10 Aug 10am to 16 Aug 10am"}'
+
+# 2 — Check Mailpit for the approval email: http://localhost:8025
+#     Copy the REQUEST_ID from the email subject line.
+
+# 3 — Approve (replace <REQUEST_ID> and <ADMIN_TOKEN>):
+curl -s -X POST $API/admin/reservation/<REQUEST_ID>/approve \
+  -H "Authorization: Bearer <ADMIN_TOKEN>"
+
+# 4 — Send any message in the same session — the bot reports the approval.
+
+# 5 — To reject instead (optional reason in body):
+curl -s -X POST $API/admin/reservation/<REQUEST_ID>/reject \
+  -H "Authorization: Bearer <ADMIN_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"reason": "No available spaces on those dates"}'
+```
+
+For the full walkthrough including timeout testing, see `specs/002-admin-approval/quickstart.md`.
+
+## Stage 4: MCP Reservation Storage
+
+When an administrator approves a reservation via `POST /admin/reservation/{id}/approve`, the system automatically records the approval to a persistent text file using an embedded **MCP (Model Context Protocol) server** subprocess.
+
+### Storage format
+
+Each approved record is appended as one pipe-delimited line:
+
+```
+Alice Smith | ABC123 | 2026-08-15 10:00 → 2026-08-16 10:00 | 2026-08-12 14:30
+```
+
+Fields: `Name | Car Number | Reservation Period | Approval Time (UTC)`
+
+### Storage file location
+
+Configurable via `RESERVATIONS_FILE_PATH` (default: `data/reservations.txt`). The file is created on the first approval if it does not exist. This file is excluded from version control.
+
+### Architecture
+
+The `chatbot.storage` package contains three modules:
+
+- **`writer.py`** — `ReservationWriter`: appends one record with `fcntl.LOCK_EX` for concurrent-write safety
+- **`server.py`** — MCP server: exposes `write_reservation_record` tool; run as a subprocess (`python -m chatbot.storage.server`)
+- **`client.py`** — `ReservationStorageClient`: spawns the server via stdio transport, calls the tool, raises `RuntimeError` on failure
+
+Storage write failures are logged but do not roll back the approval decision — the user still receives their chat notification.
 
 ## Evaluation
 
@@ -152,4 +279,22 @@ Writes a full JSON report to `eval/report_<timestamp>.json`.
 
 ## Evaluation Results
 
-*To be populated after a live run against the seeded knowledge base.*
+Run the evaluation against the seeded knowledge base after starting the full Docker stack:
+
+```bash
+docker compose up -d          # starts Milvus, PostgreSQL
+python scripts/init_db.py --seed
+python scripts/ingest.py      # index parking_info/ into Milvus
+python scripts/evaluate.py    # writes eval/report_<timestamp>.json
+```
+
+Sample output format (replace with live values after running):
+
+```
+Recall@5:        <value>   # fraction of relevant chunks retrieved in top-5
+Precision@5:     <value>   # fraction of retrieved chunks that are relevant
+Avg latency:     <value> ms
+Report written → eval/report_<timestamp>.json
+```
+
+**Note**: Evaluation requires a running Milvus instance and a valid `OPENAI_API_KEY`. Unit tests run without either dependency.

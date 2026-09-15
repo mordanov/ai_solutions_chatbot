@@ -16,7 +16,9 @@ _INTENT_SYSTEM = (
     "pricing = questions about rates or costs\n"
     "hours = questions about opening times\n"
     "availability = questions about free spaces\n"
-    "reservation = user wants to book a space\n"
+    "reservation = user wants to book a space, OR the message contains reservation details "
+    "such as a person's name, vehicle plate number, or date/time range — "
+    "even if no explicit booking verb is used\n"
     "out_of_scope = unrelated to parking"
 )
 
@@ -162,12 +164,22 @@ def guard_rails_node(state: ConversationState) -> ConversationState:
 
         draft = state.response_draft or ""
 
-        # Reservation confirmations legitimately echo the user's own data — skip PII scan
-        if state.reservation and state.reservation.status == "submitted":
+        # Approval-related messages legitimately echo the user's own reservation data — skip PII scan
+        _approval_statuses = {"pending_approval", "approved", "rejected", "expired"}
+        if state.approval_request_id or (state.reservation and state.reservation.status in _approval_statuses):
             state.response_final = draft
             return state
 
         blocklist = RuleBlocklist()
+
+        # DB-backed responses (hours, pricing, availability) are our own data —
+        # skip PII scan to avoid Presidio false positives on day names / locations.
+        if state.intent in {"pricing", "hours", "availability"}:
+            state.response_final = draft if not blocklist.check(draft) else (
+                "I'm unable to provide that information for privacy and security reasons."
+            )
+            return state
+
         scanner = PiiScanner()
 
         if blocklist.check(draft) or scanner.scan(draft):
@@ -218,21 +230,30 @@ def reservation_collector_node(state: ConversationState) -> ConversationState:
             state.reservation = StateReservation()
 
         llm = _get_llm()
+        from datetime import date as _date
+
         from langchain_core.prompts import ChatPromptTemplate
 
         current = state.reservation
+        today = _date.today().isoformat()
         extract_prompt = ChatPromptTemplate.from_messages(
             [
                 (
                     "system",
                     "Extract parking reservation fields from the user message. "
+                    f"Today's date is {today}. "
                     "Current known fields: "
                     f"first_name={current.first_name!r}, surname={current.surname!r}, "
                     f"license_plate={current.license_plate!r}, "
                     f"start_datetime={current.start_datetime!r}, "
                     f"end_datetime={current.end_datetime!r}. "
+                    "Rules:\n"
+                    "- Output datetimes in YYYY-MM-DD HH:MM format only.\n"
+                    "- If only a time is mentioned (e.g. 'from 9 to 18'), assume today's date.\n"
+                    "- If no date is mentioned, assume today.\n"
+                    "- Ignore addresses — there is no address field.\n"
                     "Return ONLY a JSON object with keys: first_name, surname, license_plate, "
-                    "start_datetime, end_datetime. Use null for fields not mentioned.",
+                    "start_datetime, end_datetime. Use null for fields not present in the message.",
                 ),
                 ("human", "{message}"),
             ]
@@ -271,17 +292,108 @@ def reservation_validator_node(state: ConversationState) -> ConversationState:
 
         errors = validate_reservation(state.reservation)
         if errors:
-            state.response_draft = "Please provide: " + "; ".join(errors)
+            res = state.reservation
+            ack_parts = []
+            name = " ".join(filter(None, [res.first_name, res.surname]))
+            if name:
+                ack_parts.append(f"name: {name}")
+            if res.license_plate:
+                ack_parts.append(f"plate: {res.license_plate}")
+            if res.start_datetime:
+                ack_parts.append(f"from: {res.start_datetime}")
+            if res.end_datetime:
+                ack_parts.append(f"to: {res.end_datetime}")
+            prefix = ("Got " + ", ".join(ack_parts) + ". ") if ack_parts else ""
+            state.response_draft = prefix + "Still need: " + "; ".join(errors) + "."
         else:
             state.reservation.status = "submitted"
-            state.response_draft = (
-                f"Your reservation has been submitted!\n"
-                f"Name: {state.reservation.first_name} {state.reservation.surname}\n"
-                f"Plate: {state.reservation.license_plate}\n"
-                f"From: {state.reservation.start_datetime} to {state.reservation.end_datetime}"
-            )
     except Exception as exc:
         logger.error("reservation_validator_node failed: %s", exc)
         state.error = str(exc)
         state.response_draft = "There was a problem processing your reservation."
+    return state
+
+
+def approval_request_node(state: ConversationState) -> ConversationState:
+    """Send approval request email to admin and transition reservation to pending_approval."""
+    try:
+        from chatbot.approval.service import ApprovalService
+
+        res = state.reservation
+        if res is None:
+            state.response_draft = "No reservation found to submit."
+            return state
+
+        service = ApprovalService()
+        request = service.create_request(
+            session_id=state.session_id,
+            first_name=res.first_name or "",
+            surname=res.surname or "",
+            license_plate=res.license_plate or "",
+            start_datetime=res.start_datetime or "",
+            end_datetime=res.end_datetime or "",
+        )
+        state.approval_request_id = request.request_id
+        state.reservation.status = "pending_approval"
+        state.response_draft = (
+            "Your reservation request has been sent to the administrator for approval. "
+            "You'll be notified as soon as a decision is made. "
+            "Feel free to ask me anything else in the meantime!"
+        )
+    except Exception as exc:
+        logger.error("approval_request_node failed: %s", exc)
+        state.error = str(exc)
+        state.response_draft = (
+            "Your reservation details are complete, but I couldn't notify the administrator. "
+            "Please try again later."
+        )
+    return state
+
+
+def pending_check_node(state: ConversationState) -> ConversationState:
+    """Check if a pending admin decision has arrived for this session."""
+    # Reset per-turn fields so stale values from the previous turn don't bleed through
+    state.response_draft = None
+    state.response_final = None
+    state.intent = None
+    try:
+        from chatbot.approval.store import pending_store
+
+        pending = pending_store.get_pending_for_session(state.session_id)
+        if pending is None:
+            return state
+
+        if pending_store.is_expired(pending.request_id):
+            pending_store.clear_session(state.session_id)
+            if state.reservation:
+                state.reservation.status = "expired"
+            state.response_draft = (
+                "Your reservation request timed out before the administrator responded. "
+                "Please resubmit if you'd still like to book."
+            )
+            return state
+
+        if pending.decision is not None:
+            pending_store.clear_session(state.session_id)
+            state.approval_request_id = pending.request_id
+            if pending.decision == "approved":
+                if state.reservation:
+                    state.reservation.status = "approved"
+                state.response_draft = (
+                    f"✅ Your reservation has been approved!\n"
+                    f"Name: {pending.first_name} {pending.surname} | "
+                    f"Plate: {pending.license_plate}\n"
+                    f"From: {pending.start_datetime} → To: {pending.end_datetime}"
+                )
+            else:
+                if state.reservation:
+                    state.reservation.status = "rejected"
+                reason_line = f"\nReason: {pending.reason}" if pending.reason else ""
+                state.response_draft = (
+                    f"❌ Your reservation was not approved.{reason_line}\n"
+                    "Please contact us if you have questions or would like to try different dates."
+                )
+    except Exception as exc:
+        logger.error("pending_check_node failed: %s", exc)
+        state.error = str(exc)
     return state
