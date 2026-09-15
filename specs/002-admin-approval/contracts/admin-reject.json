@@ -1,0 +1,49 @@
+{
+  "endpoint": "POST /admin/reservation/{request_id}/reject",
+  "summary": "Reject a pending reservation request",
+  "auth": {
+    "type": "bearer",
+    "description": "Same admin_token used by Stage 1 admin endpoints"
+  },
+  "path_parameters": {
+    "request_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique ID of the ApprovalRequest to reject"
+    }
+  },
+  "request_body": {
+    "required": false,
+    "content_type": "application/json",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "reason": {
+          "type": "string",
+          "description": "Optional human-readable rejection reason shown to the user"
+        }
+      }
+    }
+  },
+  "responses": {
+    "204": {
+      "description": "Decision recorded successfully; no response body"
+    },
+    "401": {
+      "description": "Missing or invalid bearer token",
+      "body": { "detail": "Unauthorised" }
+    },
+    "404": {
+      "description": "request_id not found in pending store",
+      "body": { "detail": "Reservation request not found" }
+    },
+    "409": {
+      "description": "Request has already been decided or has expired",
+      "body": { "detail": "Reservation request is no longer actionable" }
+    }
+  },
+  "side_effects": [
+    "Sets ApprovalRequest.decision = 'rejected', ApprovalRequest.reason = <provided reason>, ApprovalRequest.decided_at = now()",
+    "On the next user message for this session, pending_check_node delivers the rejection to the user"
+  ]
+}

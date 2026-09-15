@@ -1,0 +1,112 @@
+[
+  {
+    "question": "Where is the parking facility located?",
+    "expected_answer": "CityPark is located at 42 Market Street, City Centre.",
+    "relevant_chunk_ids": []
+  },
+  {
+    "question": "What is the address of the parking?",
+    "expected_answer": "42 Market Street, City Centre, Postcode CC1 2AB.",
+    "relevant_chunk_ids": []
+  },
+  {
+    "question": "How do I get to the parking by public transport?",
+    "expected_answer": "The nearest metro station is Central Square (lines 1 and 3), a 3-minute walk.",
+    "relevant_chunk_ids": []
+  },
+  {
+    "question": "What is the speed limit inside the parking?",
+    "expected_answer": "10 km/h.",
+    "relevant_chunk_ids": []
+  },
+  {
+    "question": "How many parking spaces are there in total?",
+    "expected_answer": "350 total parking spaces across 5 floors.",
+    "relevant_chunk_ids": []
+  },
+  {
+    "question": "Are there EV charging stations?",
+    "expected_answer": "Yes, 12 EV charging stations on floors 1 and 2.",
+    "relevant_chunk_ids": []
+  },
+  {
+    "question": "What happens if I park outside a designated bay?",
+    "expected_answer": "Parking outside designated bays is prohibited and may result in clamping.",
+    "relevant_chunk_ids": []
+  },
+  {
+    "question": "Are disabled parking bays available?",
+    "expected_answer": "Yes, dedicated spaces for disabled drivers on floor 1, near the entrance.",
+    "relevant_chunk_ids": []
+  },
+  {
+    "question": "Can I sleep in my vehicle overnight in the parking?",
+    "expected_answer": "No, overnight sleeping in vehicles is not permitted.",
+    "relevant_chunk_ids": []
+  },
+  {
+    "question": "How do I reserve a parking space?",
+    "expected_answer": "You can reserve a space through the CityPark chatbot by providing your name, licence plate, start and end times.",
+    "relevant_chunk_ids": []
+  },
+  {
+    "question": "How far in advance must I make a reservation?",
+    "expected_answer": "Reservations must be made at least 1 hour in advance.",
+    "relevant_chunk_ids": []
+  },
+  {
+    "question": "How long is a reserved space held past the start time?",
+    "expected_answer": "15 minutes past the reservation start time.",
+    "relevant_chunk_ids": []
+  },
+  {
+    "question": "Can I cancel my reservation for free?",
+    "expected_answer": "Yes, cancellations more than 2 hours before start time are free of charge.",
+    "relevant_chunk_ids": []
+  },
+  {
+    "question": "What payment methods are accepted?",
+    "expected_answer": "Credit/debit cards and contactless payment. Cash is not accepted.",
+    "relevant_chunk_ids": []
+  },
+  {
+    "question": "What is the maximum vehicle height allowed?",
+    "expected_answer": "2.1 metres.",
+    "relevant_chunk_ids": []
+  },
+  {
+    "question": "Is there security at the parking?",
+    "expected_answer": "Yes, CCTV surveillance and on-site security personnel 07:00–23:00.",
+    "relevant_chunk_ids": []
+  },
+  {
+    "question": "What nearby landmarks are close to the parking?",
+    "expected_answer": "City Hall (200 m north), Central Library (400 m east), Main Train Station (800 m south-east).",
+    "relevant_chunk_ids": []
+  },
+  {
+    "question": "What do I do if the licence plate recognition fails on exit?",
+    "expected_answer": "Proceed to the help booth on floor 1 or use the intercom at the exit barrier.",
+    "relevant_chunk_ids": []
+  },
+  {
+    "question": "Does the parking offer monthly subscriptions?",
+    "expected_answer": "Yes, monthly and annual subscription plans are available.",
+    "relevant_chunk_ids": []
+  },
+  {
+    "question": "What information do I need to provide to make a reservation?",
+    "expected_answer": "First name, surname, vehicle licence plate number, desired start date/time, and desired end date/time.",
+    "relevant_chunk_ids": []
+  },
+  {
+    "question": "Can I walk in without a reservation?",
+    "expected_answer": "Yes, walk-in spaces are available on a first-come, first-served basis subject to availability.",
+    "relevant_chunk_ids": []
+  },
+  {
+    "question": "How do I enter the parking by car?",
+    "expected_answer": "Enter from Market Street — the barrier entrance is on the right side, clearly signposted.",
+    "relevant_chunk_ids": []
+  }
+]
