@@ -11,7 +11,7 @@ set -a; source "${REMOTE_DIR}/.env"; set +a
 
 : "${CHATBOT_DOMAIN:?Set CHATBOT_DOMAIN in .env}"
 : "${MAIL_DOMAIN:?Set MAIL_DOMAIN in .env}"
-: "${CERT_EMAIL:?Run as: CERT_EMAIL=you@example.com bash setup-ssl.sh}"
+: "${CERT_EMAIL:?Run as: sudo CERT_EMAIL=you@example.com bash setup-ssl.sh}"
 
 cd "${REMOTE_DIR}"
 

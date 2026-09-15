@@ -148,20 +148,25 @@ EOF
 Make sure both domain DNS records point at the VPS IP before this step.
 
 ```bash
-CERT_EMAIL=you@example.com sudo bash /opt/chatbot/scripts/setup-ssl.sh
+ssh deploy@<VPS_IP>
+sudo CERT_EMAIL=you@example.com bash /opt/chatbot/scripts/setup-ssl.sh
 ```
 
 **What the script does:**
 
-1. Stops the nginx container to free port 80
-2. Runs `certbot certonly --standalone` for each domain (separate cert per domain)
-3. Installs pre/post renewal hooks so `certbot renew` automatically stops/starts nginx
-4. Restarts nginx — the entrypoint detects the certs and loads the HTTPS config
+1. Reads `CHATBOT_DOMAIN` and `MAIL_DOMAIN` from `/opt/chatbot/.env`
+2. Stops the nginx container to free port 80 for the ACME challenge
+3. Runs `certbot certonly --standalone` for each domain (separate cert per domain)
+4. Installs pre/post renewal hooks so `certbot renew` automatically stops/starts nginx
+5. Restarts nginx — the entrypoint detects the certs and switches to the HTTPS config
 
 After this step:
 
 - Chatbot UI: `https://chatbot.dqaifactory.ru`
-- Mailpit web: `https://chatmail.dqaifactory.ru`
+- Mailpit web:  `https://chatmail.dqaifactory.ru`
+
+> **Note:** `certbot` must be installed on the host (`vps-setup.sh` does this).
+> The host nginx is intentionally not installed — nginx runs inside Docker.
 
 ---
 
