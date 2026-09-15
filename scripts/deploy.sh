@@ -14,7 +14,7 @@ rsync -az --delete \
   --exclude '__pycache__/' \
   --exclude '*.pyc' \
   --exclude '.env' \
-  --exclude '/data/' \
+  --exclude '/data/reservations.txt' \
   --exclude '.venv/' \
   --exclude 'node_modules/' \
   ./ "${VPS_USER}@${VPS_HOST}:${REMOTE_DIR}/"
