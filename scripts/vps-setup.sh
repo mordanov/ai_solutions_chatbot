@@ -13,7 +13,7 @@ chmod a+r /etc/apt/keyrings/docker.gpg
 
 echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
   https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
-  | tee /etc/apt/sources.list.d/docker.list
+  > /etc/apt/sources.list.d/docker.list
 
 apt-get update -qq
 apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
@@ -24,8 +24,11 @@ apt-get install -y nginx certbot python3-certbot-nginx
 
 # ── Deploy user ──────────────────────────────────────────────────────
 useradd -m -s /bin/bash deploy || echo "User 'deploy' already exists."
-usermod -aG sudo deploy    # administrator
 usermod -aG docker deploy  # run docker without sudo
+
+# Passwordless sudo — needed by setup-ssl.sh (nginx config writes + certbot)
+echo "deploy ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/deploy
+chmod 440 /etc/sudoers.d/deploy
 
 # Copy root's authorized_keys so the same SSH key works for deploy.
 if [ -f /root/.ssh/authorized_keys ]; then
@@ -42,11 +45,13 @@ fi
 install -d -m 755 -o deploy -g deploy /opt/chatbot
 
 # ── Firewall ─────────────────────────────────────────────────────────
-# Block direct access to app ports; only nginx (80/443) is public.
+# Only nginx (80/443) and SSH are public; everything else is internal.
 ufw --force enable
 ufw allow ssh
 ufw allow 'Nginx Full'
-ufw deny 8000/tcp
-ufw deny 8501/tcp
+ufw deny 8000/tcp   # API (no longer has a host port, kept for safety)
+ufw deny 8501/tcp   # Streamlit (no longer has a host port, kept for safety)
+ufw deny 5433/tcp   # PostgreSQL
+ufw deny 1025/tcp   # Mailpit SMTP
 
 echo "VPS setup complete. Deploy with user 'deploy'."

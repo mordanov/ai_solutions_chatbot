@@ -78,7 +78,8 @@ services:
   mailhog:
     image: axllent/mailpit:latest
     ports:
-      - "1025:1025"   # SMTP — keep exposed for local dev / external mail relay
+      - "1025:1025"
+      - "8025:8025"
     restart: unless-stopped
 
   # ── Application ──────────────────────────────────────────────────
@@ -91,6 +92,8 @@ services:
       MILVUS_URI: http://milvus:19530
       API_HOST: "0.0.0.0"
       API_PORT: "8000"
+    ports:
+      - "8000:8000"
     command: scripts/docker-entrypoint.sh
     depends_on:
       postgres:
@@ -110,28 +113,12 @@ services:
     env_file: .env
     environment:
       API_BASE_URL: http://api:8000
+    ports:
+      - "8501:8501"
     command: streamlit run src/chatbot/app.py --server.address 0.0.0.0 --server.port 8501
     depends_on:
       api:
         condition: service_healthy
-    restart: unless-stopped
-
-  nginx:
-    image: nginx:1.27-alpine
-    entrypoint: ["/bin/sh", "/docker-entrypoint.sh"]
-    environment:
-      CHATBOT_DOMAIN: ${CHATBOT_DOMAIN}
-      MAIL_DOMAIN: ${MAIL_DOMAIN}
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/docker-entrypoint.sh:/docker-entrypoint.sh:ro
-      - ./nginx/http.conf.template:/etc/nginx/templates/http.conf.template:ro
-      - ./nginx/https.conf.template:/etc/nginx/templates/https.conf.template:ro
-      - /etc/letsencrypt:/etc/letsencrypt:ro
-    depends_on:
-      - ui
     restart: unless-stopped
 
 volumes:

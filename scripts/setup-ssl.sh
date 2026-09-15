@@ -1,36 +1,49 @@
 #!/usr/bin/env bash
 # Run once on the VPS after vps-setup.sh and after the app is running.
-# Configures nginx reverse proxy for Streamlit and gets a Let's Encrypt cert.
+# Obtains Let's Encrypt certs for both domains and restarts nginx with HTTPS.
 set -euo pipefail
 
-DOMAIN=chatbot.dqaifactory.ru
-EMAIL=${CERT_EMAIL:?Set CERT_EMAIL=you@example.com before running this script}
+REMOTE_DIR=/opt/chatbot
 
-# ── Nginx config ─────────────────────────────────────────────────────
-cat > /etc/nginx/sites-available/${DOMAIN} << 'NGINX'
-server {
-    listen 80;
-    server_name chatbot.dqaifactory.ru;
+# Read domains from .env
+# shellcheck source=/dev/null
+set -a; source "${REMOTE_DIR}/.env"; set +a
 
-    # Streamlit UI
-    location / {
-        proxy_pass         http://localhost:8501;
-        proxy_http_version 1.1;
-        proxy_set_header   Upgrade $http_upgrade;
-        proxy_set_header   Connection "upgrade";
-        proxy_set_header   Host $host;
-        proxy_set_header   X-Real-IP $remote_addr;
-        proxy_read_timeout 86400;
-    }
-}
-NGINX
+: "${CHATBOT_DOMAIN:?Set CHATBOT_DOMAIN in .env}"
+: "${MAIL_DOMAIN:?Set MAIL_DOMAIN in .env}"
+: "${CERT_EMAIL:?Run as: CERT_EMAIL=you@example.com bash setup-ssl.sh}"
 
-ln -sf /etc/nginx/sites-available/${DOMAIN} /etc/nginx/sites-enabled/${DOMAIN}
-rm -f /etc/nginx/sites-enabled/default
-nginx -t
-systemctl reload nginx
+cd "${REMOTE_DIR}"
 
-# ── TLS cert via Let's Encrypt ────────────────────────────────────────
-certbot --nginx -d ${DOMAIN} --non-interactive --agree-tos -m "${EMAIL}"
+# Stop nginx to free port 80 for certbot standalone challenge
+docker compose stop nginx
 
-echo "HTTPS setup complete. Visit https://${DOMAIN}"
+# Obtain certs (separate cert per domain so each server block gets its own)
+certbot certonly --standalone --non-interactive --agree-tos \
+  -m "${CERT_EMAIL}" -d "${CHATBOT_DOMAIN}"
+
+certbot certonly --standalone --non-interactive --agree-tos \
+  -m "${CERT_EMAIL}" -d "${MAIL_DOMAIN}"
+
+# Register pre/post hooks so auto-renewal also stops/starts nginx
+mkdir -p /etc/letsencrypt/renewal-hooks/pre /etc/letsencrypt/renewal-hooks/post
+
+cat > /etc/letsencrypt/renewal-hooks/pre/stop-nginx.sh << EOF
+#!/bin/sh
+docker compose -f ${REMOTE_DIR}/docker-compose.yml stop nginx
+EOF
+
+cat > /etc/letsencrypt/renewal-hooks/post/start-nginx.sh << EOF
+#!/bin/sh
+docker compose -f ${REMOTE_DIR}/docker-compose.yml start nginx
+EOF
+
+chmod +x /etc/letsencrypt/renewal-hooks/pre/stop-nginx.sh \
+         /etc/letsencrypt/renewal-hooks/post/start-nginx.sh
+
+# Start nginx — docker-entrypoint.sh sees the certs and loads the HTTPS config
+docker compose start nginx
+
+echo "HTTPS setup complete."
+echo "  Chatbot: https://${CHATBOT_DOMAIN}"
+echo "  Mail:    https://${MAIL_DOMAIN}"

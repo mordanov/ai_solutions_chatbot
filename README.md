@@ -111,10 +111,13 @@ See `.env.example` for the complete list. Required:
 
 ### 1 — Start infrastructure (includes Mailpit for dev SMTP)
 
+Use `docker-compose.local.yml` for local development — no nginx, all ports exposed directly.
+`docker-compose.yml` is the production file (nginx reverse proxy, used by the VPS deploy script).
+
 ```bash
-docker compose up -d
+docker compose -f docker-compose.local.yml up -d
 # Mailpit web UI:  http://localhost:8025
-# API:             http://localhost:8080
+# API:             http://localhost:8000
 # Streamlit UI:    http://localhost:8501
 # PostgreSQL:      localhost:5433
 ```
