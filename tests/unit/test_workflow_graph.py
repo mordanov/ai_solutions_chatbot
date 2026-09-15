@@ -31,6 +31,13 @@ def test_route_after_intent_unknown_falls_back_to_out_of_scope():
     assert _route_after_intent(_state(intent="something_unknown")) == "out_of_scope_node"
 
 
+def test_route_after_intent_continues_draft_reservation_regardless_of_intent():
+    # Name/plate inputs get classified as out_of_scope by the LLM; if a reservation
+    # is in progress they must still reach reservation_collector_node.
+    state = _state(intent="out_of_scope", reservation=ReservationData(status="draft"))
+    assert _route_after_intent(state) == "reservation_collector_node"
+
+
 # ------------------------------------------------------------------
 # _route_after_reservation_validator
 # ------------------------------------------------------------------

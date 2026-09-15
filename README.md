@@ -3,6 +3,11 @@
 An intelligent parking reservation chatbot built with LangChain, LangGraph, and a
 Milvus vector database. Stages 1–4 delivered.
 
+Supports free-text multi-turn conversations: users can provide all reservation details in
+a single sentence ("Alice Smith, plate AB1234, from 9 to 18") or across multiple turns.
+Conversation state is persisted across requests within a session via LangGraph's
+`MemorySaver` checkpointer.
+
 ## Architecture
 
 ```mermaid
@@ -11,7 +16,7 @@ flowchart TD
     UI["Streamlit UI"]
     API["FastAPI\n/chat endpoint"]
     Admin(["🔑 Administrator"])
-    SMTP["SMTP / MailHog"]
+    SMTP["SMTP / Mailpit"]
     MCP["MCP Storage Server\nchatbot.storage"]
     File[("reservations.txt")]
 
@@ -58,6 +63,8 @@ flowchart TD
 | API | FastAPI |
 | UI | Streamlit |
 | Guard Rails | Presidio + regex rules |
+| Session memory | LangGraph MemorySaver |
+| Dev SMTP | Mailpit |
 
 ## Prerequisites
 
@@ -94,19 +101,22 @@ See `.env.example` for the complete list. Required:
 | `DATABASE_URL` | SQLAlchemy URL (default: SQLite) |
 | `MILVUS_URI` | Milvus server URI |
 | `ADMIN_TOKEN` | Bearer token for admin endpoints |
-| `SMTP_HOST` | SMTP server host (MailHog: `localhost`) |
-| `SMTP_PORT` | SMTP server port (MailHog: `1025`) |
+| `SMTP_HOST` | SMTP server host (Mailpit: `localhost`) |
+| `SMTP_PORT` | SMTP server port (Mailpit: `1025`) |
 | `ADMIN_EMAIL` | Email address that receives approval requests |
 | `APPROVAL_TIMEOUT_SECONDS` | Seconds before a pending request expires (default: `300`) |
 | `RESERVATIONS_FILE_PATH` | Path to the approved reservations audit log (default: `data/reservations.txt`) |
 
 ## Running
 
-### 1 — Start infrastructure (includes MailHog for dev SMTP)
+### 1 — Start infrastructure (includes Mailpit for dev SMTP)
 
 ```bash
 docker compose up -d
-# MailHog web UI available at http://localhost:8025
+# Mailpit web UI:  http://localhost:8025
+# API:             http://localhost:8080
+# Streamlit UI:    http://localhost:8501
+# PostgreSQL:      localhost:5433
 ```
 
 ### 2 — Initialise the database
@@ -125,6 +135,7 @@ python scripts/ingest.py
 
 ```bash
 uvicorn chatbot.api.main:app --reload
+# API available at http://localhost:8000 (local dev)
 ```
 
 ### 5 — Start the Streamlit UI
@@ -134,6 +145,10 @@ streamlit run src/chatbot/app.py
 ```
 
 Open <http://localhost:8501> in your browser.
+
+> **Docker Compose ports** differ from local dev defaults because the compose file maps
+> the API to `8080` and PostgreSQL to `5433` to avoid conflicts with other services.
+> Local `uvicorn` still binds to `8000` by default.
 
 ## Running Tests
 
@@ -175,7 +190,8 @@ python scripts/ingest.py
 Or call the admin endpoint:
 
 ```bash
-curl -X POST http://localhost:8000/admin/reload-knowledge \
+# Docker Compose: port 8080 / local dev: port 8000
+curl -X POST http://localhost:8080/admin/reload-knowledge \
      -H "Authorization: Bearer $ADMIN_TOKEN"
 ```
 
@@ -183,29 +199,40 @@ curl -X POST http://localhost:8000/admin/reload-knowledge \
 
 When a user submits a complete reservation, the chatbot:
 
-1. Sends an email to `ADMIN_EMAIL` via SMTP containing full reservation details and two curl commands to approve or reject.
+1. Sends an email to `ADMIN_EMAIL` via SMTP containing full reservation details and two
+   curl commands to approve or reject. SMTP failure is non-fatal — the request is stored
+   and visible in the admin panel regardless.
 2. Transitions the reservation status to `pending_approval` and informs the user.
-3. On every subsequent user message, `pending_check_node` checks for an admin decision. When one arrives the user is notified immediately; if the timeout elapses the request is marked `expired`.
+3. On every subsequent user message, `pending_check_node` checks for an admin decision.
+   When one arrives the user is notified immediately; if the timeout elapses the request
+   is marked `expired`.
+
+Conversation state (collected fields, pending status) is persisted across HTTP requests
+within the same `session_id` via LangGraph `MemorySaver`.
 
 ### Demo walkthrough
 
 ```bash
-# 1 — Submit a reservation via the chat UI (or API):
-curl -s -X POST http://localhost:8000/chat \
-  -H "Content-Type: application/json" \
-  -d '{"session_id":"demo","message":"Book a space for Alice Smith, plate ABC123, 15 Aug 10am to 16 Aug 10am"}'
+# Use port 8080 when running via Docker Compose, 8000 for local dev.
+API=http://localhost:8080
 
-# 2 — Check MailHog for the approval email: http://localhost:8025
+# 1 — Submit a reservation via the chat UI (or API).
+#     Free-text is understood — name, plate, and times in any order:
+curl -s -X POST $API/chat \
+  -H "Content-Type: application/json" \
+  -d '{"session_id":"demo","message":"Alice Smith, plate ABC123, from 10 Aug 10am to 16 Aug 10am"}'
+
+# 2 — Check Mailpit for the approval email: http://localhost:8025
 #     Copy the REQUEST_ID from the email subject line.
 
 # 3 — Approve (replace <REQUEST_ID> and <ADMIN_TOKEN>):
-curl -s -X POST http://localhost:8000/admin/reservation/<REQUEST_ID>/approve \
+curl -s -X POST $API/admin/reservation/<REQUEST_ID>/approve \
   -H "Authorization: Bearer <ADMIN_TOKEN>"
 
 # 4 — Send any message in the same session — the bot reports the approval.
 
 # 5 — To reject instead (optional reason in body):
-curl -s -X POST http://localhost:8000/admin/reservation/<REQUEST_ID>/reject \
+curl -s -X POST $API/admin/reservation/<REQUEST_ID>/reject \
   -H "Authorization: Bearer <ADMIN_TOKEN>" \
   -H "Content-Type: application/json" \
   -d '{"reason": "No available spaces on those dates"}'

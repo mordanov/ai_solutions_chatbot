@@ -35,11 +35,20 @@ def _reset_store() -> None:
     store_mod._by_request.clear()
 
 
+def _reset_checkpointer() -> None:
+    from chatbot.workflow.graph import compiled_graph
+    cp = compiled_graph.checkpointer
+    if cp is not None and hasattr(cp, "storage"):
+        cp.storage.clear()
+
+
 @pytest.fixture(autouse=True)
 def clean_store():
     _reset_store()
+    _reset_checkpointer()
     yield
     _reset_store()
+    _reset_checkpointer()
 
 
 def _mock_llm_for_reservation() -> MagicMock:
