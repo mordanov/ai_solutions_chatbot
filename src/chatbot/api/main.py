@@ -59,11 +59,19 @@ async def chat(req: ChatRequest) -> ChatResponse:
     session_id = req.session_id or str(uuid.uuid4())
     start = time.monotonic()
     try:
-        initial_state = ConversationState(
-            session_id=session_id,
-            messages=[HumanMessage(content=req.message)],
-        )
-        raw = compiled_graph.invoke(initial_state)
+        config = {"configurable": {"thread_id": session_id}}
+        # Check whether a prior state exists for this session
+        checkpoint = compiled_graph.get_state(config)
+        if checkpoint.values:
+            # Session exists — inject only the new message; checkpointer restores the rest
+            input_state = {"messages": [HumanMessage(content=req.message)]}
+        else:
+            # New session — seed the full initial state
+            input_state = ConversationState(
+                session_id=session_id,
+                messages=[HumanMessage(content=req.message)],
+            )
+        raw = compiled_graph.invoke(input_state, config=config)
         response_text = (
             raw.get("response_final") or raw.get("response_draft") or "No response generated."
         )

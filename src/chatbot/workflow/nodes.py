@@ -16,7 +16,9 @@ _INTENT_SYSTEM = (
     "pricing = questions about rates or costs\n"
     "hours = questions about opening times\n"
     "availability = questions about free spaces\n"
-    "reservation = user wants to book a space\n"
+    "reservation = user wants to book a space, OR the message contains reservation details "
+    "such as a person's name, vehicle plate number, or date/time range — "
+    "even if no explicit booking verb is used\n"
     "out_of_scope = unrelated to parking"
 )
 
@@ -169,6 +171,15 @@ def guard_rails_node(state: ConversationState) -> ConversationState:
             return state
 
         blocklist = RuleBlocklist()
+
+        # DB-backed responses (hours, pricing, availability) are our own data —
+        # skip PII scan to avoid Presidio false positives on day names / locations.
+        if state.intent in {"pricing", "hours", "availability"}:
+            state.response_final = draft if not blocklist.check(draft) else (
+                "I'm unable to provide that information for privacy and security reasons."
+            )
+            return state
+
         scanner = PiiScanner()
 
         if blocklist.check(draft) or scanner.scan(draft):
@@ -219,21 +230,30 @@ def reservation_collector_node(state: ConversationState) -> ConversationState:
             state.reservation = StateReservation()
 
         llm = _get_llm()
+        from datetime import date as _date
+
         from langchain_core.prompts import ChatPromptTemplate
 
         current = state.reservation
+        today = _date.today().isoformat()
         extract_prompt = ChatPromptTemplate.from_messages(
             [
                 (
                     "system",
                     "Extract parking reservation fields from the user message. "
+                    f"Today's date is {today}. "
                     "Current known fields: "
                     f"first_name={current.first_name!r}, surname={current.surname!r}, "
                     f"license_plate={current.license_plate!r}, "
                     f"start_datetime={current.start_datetime!r}, "
                     f"end_datetime={current.end_datetime!r}. "
+                    "Rules:\n"
+                    "- Output datetimes in YYYY-MM-DD HH:MM format only.\n"
+                    "- If only a time is mentioned (e.g. 'from 9 to 18'), assume today's date.\n"
+                    "- If no date is mentioned, assume today.\n"
+                    "- Ignore addresses — there is no address field.\n"
                     "Return ONLY a JSON object with keys: first_name, surname, license_plate, "
-                    "start_datetime, end_datetime. Use null for fields not mentioned.",
+                    "start_datetime, end_datetime. Use null for fields not present in the message.",
                 ),
                 ("human", "{message}"),
             ]
@@ -272,7 +292,19 @@ def reservation_validator_node(state: ConversationState) -> ConversationState:
 
         errors = validate_reservation(state.reservation)
         if errors:
-            state.response_draft = "Please provide: " + "; ".join(errors)
+            res = state.reservation
+            ack_parts = []
+            name = " ".join(filter(None, [res.first_name, res.surname]))
+            if name:
+                ack_parts.append(f"name: {name}")
+            if res.license_plate:
+                ack_parts.append(f"plate: {res.license_plate}")
+            if res.start_datetime:
+                ack_parts.append(f"from: {res.start_datetime}")
+            if res.end_datetime:
+                ack_parts.append(f"to: {res.end_datetime}")
+            prefix = ("Got " + ", ".join(ack_parts) + ". ") if ack_parts else ""
+            state.response_draft = prefix + "Still need: " + "; ".join(errors) + "."
         else:
             state.reservation.status = "submitted"
     except Exception as exc:
@@ -320,6 +352,10 @@ def approval_request_node(state: ConversationState) -> ConversationState:
 
 def pending_check_node(state: ConversationState) -> ConversationState:
     """Check if a pending admin decision has arrived for this session."""
+    # Reset per-turn fields so stale values from the previous turn don't bleed through
+    state.response_draft = None
+    state.response_final = None
+    state.intent = None
     try:
         from chatbot.approval.store import pending_store
 

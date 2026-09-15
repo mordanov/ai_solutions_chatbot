@@ -1,4 +1,5 @@
 """LangGraph StateGraph wiring for the parking chatbot."""
+from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
 
 from chatbot.workflow.nodes import (
@@ -19,6 +20,9 @@ _DYNAMIC_INTENTS = {"pricing", "hours", "availability"}
 
 
 def _route_after_intent(state: ConversationState) -> str:
+    # If a reservation is being collected, keep routing there regardless of intent
+    if state.reservation is not None and state.reservation.status == "draft":
+        return "reservation_collector_node"
     intent = state.intent or "out_of_scope"
     if intent == "info_query":
         return "retrieve_and_generate"
@@ -101,5 +105,5 @@ def build_graph() -> StateGraph:
     return graph
 
 
-# Module-level compiled graph
-compiled_graph = build_graph().compile()
+# Module-level compiled graph with in-memory session persistence
+compiled_graph = build_graph().compile(checkpointer=MemorySaver())
