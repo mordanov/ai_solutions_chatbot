@@ -45,4 +45,4 @@ class SmtpNotifier:
             logger.info("Approval request email sent for %s", request.request_id)
         except Exception as exc:
             logger.error("Failed to send approval email: %s", exc)
-            raise
+            # Don't raise — request is already in pending_store; admin can act via the panel
