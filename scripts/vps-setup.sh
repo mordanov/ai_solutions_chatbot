@@ -19,8 +19,8 @@ apt-get update -qq
 apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 systemctl enable --now docker
 
-# ── Nginx + Certbot ─────────────────────────────────────────────────
-apt-get install -y nginx certbot python3-certbot-nginx
+# ── Certbot only — nginx runs inside Docker ──────────────────────────
+apt-get install -y certbot
 
 # ── Deploy user ──────────────────────────────────────────────────────
 useradd -m -s /bin/bash deploy || echo "User 'deploy' already exists."

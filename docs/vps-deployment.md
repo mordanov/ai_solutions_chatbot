@@ -39,7 +39,7 @@ ssh root@<VPS_IP> bash /tmp/vps-setup.sh
 **What the script does:**
 
 - Installs Docker CE and the `docker compose` plugin
-- Installs nginx and Certbot (Let's Encrypt)
+- Installs Certbot (Let's Encrypt) — nginx runs inside Docker, not on the host
 - Creates a `deploy` user (sudo + docker groups)
 - Copies root's `authorized_keys` to `deploy` so the same SSH key works
 - Creates `/opt/chatbot` owned by `deploy`
