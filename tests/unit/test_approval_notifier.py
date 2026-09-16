@@ -1,4 +1,6 @@
 """Unit tests for SmtpNotifier — mocks smtplib.SMTP."""
+import email
+import email.header
 from unittest.mock import MagicMock, patch
 
 from chatbot.approval.models import ApprovalRequest
@@ -17,6 +19,22 @@ def _make_request() -> ApprovalRequest:
     )
 
 
+def _parse_email(mock_smtp):
+    raw = mock_smtp.sendmail.call_args[0][2]
+    msg = email.message_from_string(raw)
+    subject_parts = email.header.decode_header(msg["Subject"])
+    subject = "".join(
+        p.decode(enc or "utf-8") if isinstance(p, bytes) else p
+        for p, enc in subject_parts
+    )
+    body = ""
+    for part in msg.walk():
+        if part.get_content_type() == "text/html":
+            body = part.get_payload(decode=True).decode("utf-8")
+            break
+    return subject, body
+
+
 @patch("chatbot.approval.notifier.smtplib.SMTP")
 def test_send_email_subject_contains_name_and_id(mock_smtp_cls):
     mock_smtp = MagicMock()
@@ -24,14 +42,12 @@ def test_send_email_subject_contains_name_and_id(mock_smtp_cls):
     mock_smtp_cls.return_value.__exit__ = MagicMock(return_value=False)
 
     notifier = SmtpNotifier()
-    req = _make_request()
-    notifier.send_approval_request(req)
+    notifier.send_approval_request(_make_request())
 
     assert mock_smtp.sendmail.called
-    args = mock_smtp.sendmail.call_args
-    message_str = args[0][2]
-    assert "Alice Smith" in message_str
-    assert "req-abc-123" in message_str
+    subject, _ = _parse_email(mock_smtp)
+    assert "Alice Smith" in subject
+    assert "req-abc-123" in subject
 
 
 @patch("chatbot.approval.notifier.smtplib.SMTP")
@@ -41,13 +57,12 @@ def test_send_email_body_contains_approve_and_reject_commands(mock_smtp_cls):
     mock_smtp_cls.return_value.__exit__ = MagicMock(return_value=False)
 
     notifier = SmtpNotifier()
-    req = _make_request()
-    notifier.send_approval_request(req)
+    notifier.send_approval_request(_make_request())
 
-    message_str = mock_smtp.sendmail.call_args[0][2]
-    assert "approve" in message_str.lower()
-    assert "reject" in message_str.lower()
-    assert "ABC123" in message_str
+    _, body = _parse_email(mock_smtp)
+    assert "approve" in body.lower()
+    assert "reject" in body.lower()
+    assert "ABC123" in body
 
 
 @patch("chatbot.approval.notifier.smtplib.SMTP")
