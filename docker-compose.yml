@@ -114,6 +114,12 @@ services:
     depends_on:
       api:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     restart: unless-stopped
 
   nginx:
@@ -131,7 +137,8 @@ services:
       - ./nginx/https.conf.template:/etc/nginx/templates/https.conf.template:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
     depends_on:
-      - ui
+      ui:
+        condition: service_healthy
     restart: unless-stopped
 
 volumes:
