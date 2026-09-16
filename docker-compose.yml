@@ -137,8 +137,7 @@ services:
       - ./nginx/https.conf.template:/etc/nginx/templates/https.conf.template:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
     depends_on:
-      ui:
-        condition: service_healthy
+      - ui
     restart: unless-stopped
 
 volumes:
