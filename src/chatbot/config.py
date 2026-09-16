@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     admin_token: str = "change-me"
     api_host: str = "0.0.0.0"
     api_port: int = 8000
+    base_url: str = "http://localhost:8000"
 
     # Logging
     log_level: str = "INFO"

@@ -3,7 +3,8 @@ import logging
 import time
 import uuid
 
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, Query, status
+from fastapi.responses import HTMLResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from langchain_core.messages import HumanMessage
 from pydantic import BaseModel
@@ -147,6 +148,73 @@ async def reject_reservation(
         ApprovalService().record_decision(request_id, "rejected", reason=reason)
     except ValueError as exc:
         raise HTTPException(status_code=409, detail="Reservation request is no longer actionable") from exc
+
+
+@app.get("/admin/reservation/{request_id}/approve", response_class=HTMLResponse)
+async def approve_reservation_link(
+    request_id: str,
+    token: str = Query(),
+) -> HTMLResponse:
+    """One-click approve from email link."""
+    if token != settings.admin_token:
+        return HTMLResponse("<h1>401 Unauthorized</h1>", status_code=401)
+
+    from datetime import UTC, datetime
+
+    from chatbot.approval.service import ApprovalService
+    from chatbot.approval.store import pending_store
+    from chatbot.storage.client import ReservationStorageClient
+
+    req = pending_store.get_by_request_id(request_id)
+    if req is None:
+        return HTMLResponse("<h1>404 — Reservation not found or already actioned</h1>", status_code=404)
+    try:
+        ApprovalService().record_decision(request_id, "approved")
+    except ValueError:
+        return HTMLResponse("<h1>409 — Reservation is no longer actionable</h1>", status_code=409)
+
+    approval_time = datetime.now(UTC).strftime("%Y-%m-%d %H:%M")
+    period = f"{req.start_datetime} → {req.end_datetime}"
+    try:
+        await ReservationStorageClient().write_record(
+            name=f"{req.first_name} {req.surname}",
+            car_number=req.license_plate,
+            reservation_period=period,
+            approval_time=approval_time,
+        )
+    except Exception as exc:
+        logger.error("Storage write failed for request %s: %s", request_id, exc)
+
+    return HTMLResponse(
+        f"<h1>✅ Approved</h1>"
+        f"<p>{req.first_name} {req.surname} — {req.license_plate}<br>{period}</p>"
+    )
+
+
+@app.get("/admin/reservation/{request_id}/reject", response_class=HTMLResponse)
+async def reject_reservation_link(
+    request_id: str,
+    token: str = Query(),
+    reason: str = Query(default=""),
+) -> HTMLResponse:
+    """One-click reject from email link."""
+    if token != settings.admin_token:
+        return HTMLResponse("<h1>401 Unauthorized</h1>", status_code=401)
+
+    from chatbot.approval.service import ApprovalService
+    from chatbot.approval.store import pending_store
+
+    if pending_store.get_by_request_id(request_id) is None:
+        return HTMLResponse("<h1>404 — Reservation not found or already actioned</h1>", status_code=404)
+    try:
+        ApprovalService().record_decision(request_id, "rejected", reason=reason or None)
+    except ValueError:
+        return HTMLResponse("<h1>409 — Reservation is no longer actionable</h1>", status_code=409)
+
+    return HTMLResponse(
+        f"<h1>❌ Rejected</h1>"
+        f"<p>Reservation {request_id} has been rejected.</p>"
+    )
 
 
 @app.get("/admin/reservations/log")

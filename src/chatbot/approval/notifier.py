@@ -1,7 +1,9 @@
 """SMTP email notifier for admin reservation approval requests."""
 import logging
 import smtplib
+from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from urllib.parse import urlencode
 
 from chatbot.approval.models import ApprovalRequest
 from chatbot.config import settings
@@ -11,31 +13,35 @@ logger = logging.getLogger(__name__)
 
 class SmtpNotifier:
     def send_approval_request(self, request: ApprovalRequest) -> None:
+        base = settings.base_url.rstrip("/")
+        token_qs = urlencode({"token": settings.admin_token})
+        approve_url = f"{base}/admin/reservation/{request.request_id}/approve?{token_qs}"
+        reject_url = f"{base}/admin/reservation/{request.request_id}/reject?{token_qs}"
+
         subject = (
             f"[Parking Reservation] New request from "
             f"{request.first_name} {request.surname} — {request.request_id}"
         )
-        body = (
-            f"A new parking reservation request requires your approval.\n\n"
-            f"Reservation details:\n"
-            f"  Name:   {request.first_name} {request.surname}\n"
-            f"  Plate:  {request.license_plate}\n"
-            f"  From:   {request.start_datetime}\n"
-            f"  To:     {request.end_datetime}\n"
-            f"  ID:     {request.request_id}\n\n"
-            f"To APPROVE:\n"
-            f"  curl -X POST http://localhost:8000/admin/reservation/{request.request_id}/approve \\\n"
-            f"       -H \"Authorization: Bearer <your_admin_token>\"\n\n"
-            f"To REJECT:\n"
-            f"  curl -X POST http://localhost:8000/admin/reservation/{request.request_id}/reject \\\n"
-            f"       -H \"Authorization: Bearer <your_admin_token>\" \\\n"
-            f"       -H \"Content-Type: application/json\" \\\n"
-            f"       -d '{{\"reason\": \"No spaces available\"}}'\n"
+        html = (
+            f"<p>A new parking reservation request requires your approval.</p>"
+            f"<table>"
+            f"<tr><td><b>Name</b></td><td>{request.first_name} {request.surname}</td></tr>"
+            f"<tr><td><b>Plate</b></td><td>{request.license_plate}</td></tr>"
+            f"<tr><td><b>From</b></td><td>{request.start_datetime}</td></tr>"
+            f"<tr><td><b>To</b></td><td>{request.end_datetime}</td></tr>"
+            f"<tr><td><b>ID</b></td><td>{request.request_id}</td></tr>"
+            f"</table>"
+            f"<p>"
+            f'<a href="{approve_url}" style="background:#22c55e;color:#fff;padding:8px 16px;text-decoration:none;border-radius:4px;margin-right:8px">✅ Approve</a>'
+            f'<a href="{reject_url}" style="background:#ef4444;color:#fff;padding:8px 16px;text-decoration:none;border-radius:4px">❌ Reject</a>'
+            f"</p>"
         )
-        msg = MIMEText(body)
+
+        msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
         msg["From"] = settings.smtp_from
         msg["To"] = settings.admin_email
+        msg.attach(MIMEText(html, "html"))
 
         try:
             with smtplib.SMTP(settings.smtp_host, settings.smtp_port) as smtp:

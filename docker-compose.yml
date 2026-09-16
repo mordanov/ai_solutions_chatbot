@@ -91,6 +91,7 @@ services:
       MILVUS_URI: http://milvus:19530
       API_HOST: "0.0.0.0"
       API_PORT: "8000"
+      BASE_URL: https://${CHATBOT_DOMAIN}
     command: scripts/docker-entrypoint.sh
     depends_on:
       postgres:
