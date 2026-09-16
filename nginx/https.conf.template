@@ -37,8 +37,10 @@ server {
     ssl_ciphers         HIGH:!aNULL:!MD5;
 
     location / {
-        proxy_pass       http://mailhog:8025;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
+        resolver           127.0.0.11 valid=10s;
+        set $mailhog       http://mailhog:8025;
+        proxy_pass         $mailhog;
+        proxy_set_header   Host $host;
+        proxy_set_header   X-Real-IP $remote_addr;
     }
 }
